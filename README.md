@@ -1,4 +1,4 @@
-# SPECTRE — Discovery Engine
+# SPECTRE : Discovery Engine
 
 > API surface scanner for the SPECTRE API Threat Classification Platform
 
@@ -6,26 +6,26 @@
 
 ## What this is
 
-This repository contains the **discovery engine** for SPECTRE — a platform that finds and classifies dangerous APIs in an organization's network.
+This repository contains the **discovery engine** for SPECTRE, a platform that finds and classifies dangerous APIs in an organization's network.
 
 The discovery engine's job is simple but critical: **find every API endpoint that exists, from every possible source, and produce one unified list.** That list is what the rest of the platform runs on.
 
 It scans four sources in parallel:
 
-- **Nginx config files** — officially registered routes at the gateway level
-- **Kong gateway configs** — YAML-based API gateway route definitions
-- **Python source code** — routes defined in FastAPI/Flask apps via AST parsing, even if never registered in a gateway
-- **Live network traffic** — HTTP requests captured via mitmproxy, catching endpoints that exist in no file anywhere
+- **Nginx config files** : officially registered routes at the gateway level
+- **Kong gateway configs** : YAML-based API gateway route definitions
+- **Python source code** : routes defined in FastAPI/Flask apps via AST parsing, even if never registered in a gateway
+- **Live network traffic** : HTTP requests captured via mitmproxy, catching endpoints that exist in no file anywhere
 
-The output is a single JSON file — `discovered_endpoints.json` — containing every unique endpoint found, where it was found, whether auth was detected, and when it was last seen in traffic. This file feeds into the classifier, OWASP checker, and AI explanation layer in the broader SPECTRE pipeline.
+The output is a single JSON file : `discovered_endpoints.json`, containing every unique endpoint found, where it was found, whether auth was detected, and when it was last seen in traffic. This file feeds into the classifier, OWASP checker, and AI explanation layer in the broader SPECTRE pipeline.
 
 ---
 
 ## Why this matters
 
-Most API security tools only look in one place. If an endpoint isn't in the gateway config, they miss it. This scanner looks in four places simultaneously and cross-references them — so an endpoint that appears in traffic but exists in no config or codebase gets flagged immediately as a shadow API.
+Most API security tools only look in one place. If an endpoint isn't in the gateway config, they miss it. This scanner looks in four places simultaneously and cross-references them, so an endpoint that appears in traffic but exists in no config or codebase gets flagged immediately as a shadow API.
 
-This is a direct technical implementation of **OWASP API9: Improper Inventory Management** — the most common root cause of API security breaches.
+This is a direct technical implementation of **OWASP API9: Improper Inventory Management** - the most common root cause of API security breaches.
 
 ---
 
@@ -60,24 +60,24 @@ spectre-discovery/
 
 ## How it works
 
-### Step 1 — Each parser scans its source
+### Step 1 : Each parser scans its source
 
 The Nginx parser reads config files and extracts every `location` block using regex. The Kong parser loads YAML and traverses the service/route/plugin tree. The AST parser walks Python syntax trees looking for `@app.get`, `@app.post` etc. decorators. The traffic parser runs inside mitmproxy and logs every unique HTTP request it intercepts.
 
 Each parser produces a list of endpoint records matching the schema defined in `schema.py`.
 
-### Step 2 — main.py merges everything
+### Step 2 : main.py merges everything
 
-`main.py` runs all four parsers and merges their outputs into one deduplicated list. If the same endpoint appears in two sources — say, found in both the Nginx config and the Python codebase — it becomes one record with `sources: ["nginx_config", "code_repository"]` rather than two separate records. This cross-referencing is where the real value is.
+`main.py` runs all four parsers and merges their outputs into one deduplicated list. If the same endpoint appears in two sources - say, found in both the Nginx config and the Python codebase - it becomes one record with `sources: ["nginx_config", "code_repository"]` rather than two separate records. This cross-referencing is where the real value is.
 
-### Step 3 — Output
+### Step 3 : Output
 
 The final `discovered_endpoints.json` has one record per unique endpoint. Each record carries:
 - Where it was found (`sources`, `in_gateway`, `in_repo`, `seen_in_traffic`)
 - Whether authentication was detected and what type
 - HTTP status codes observed in traffic
 - The raw context it was found in (for AI explanation later)
-- A `state` field defaulting to `"unknown"` — filled in by the classifier
+- A `state` field defaulting to `"unknown"` : filled in by the classifier
 
 ---
 
@@ -107,7 +107,7 @@ Every discovered endpoint looks like this:
 }
 ```
 
-`state`, `owasp_flags`, and `risk_reason` are left as defaults — they get populated by the classifier in the next stage of the pipeline.
+`state`, `owasp_flags`, and `risk_reason` are left as defaults. They get populated by the classifier in the next stage of the pipeline.
 
 ---
 
@@ -129,52 +129,52 @@ pip install -r requirements.txt
 
 # Verify
 python scanner/schema.py
-# Should print a sample endpoint and "Valid — no errors found."
+# Should print a sample endpoint and "Valid - no errors found."
 ```
 
 ---
 
 ## Running the scanner
 
-### Quick run — file parsers only
+### Quick run : file parsers only
 
 No Docker needed. Scans the test files and produces output.
 ```bash
 python scanner/main.py
 ```
 
-### Full run — including live traffic capture
+### Full run : including live traffic capture
 
 Needs three terminal windows.
 
-**Terminal 1 — start mock services:**
+**Terminal 1 : start mock services:**
 ```bash
 cd test_environment
 docker-compose up --build
 ```
 Wait for `Uvicorn running on http://0.0.0.0:8000`
 
-**Terminal 2 — start mitmproxy:**
+**Terminal 2 : start mitmproxy:**
 ```bash
 mitmdump -s scanner/parsers/traffic_parser.py --listen-port 8080
 ```
 
-**Terminal 3 — send traffic through the proxy:**
+**Terminal 3 : send traffic through the proxy:**
 ```bash
 # Windows
 curl.exe --proxy http://localhost:8080 http://localhost:8000/api/v1/users
 curl.exe --proxy http://localhost:8080 http://localhost:8000/api/v2/internal/users
 ```
 
-Watch Terminal 2 — you will see:
+Watch Terminal 2 : you will see:
 ```
 [traffic] NEW endpoint: GET /api/v1/users
 [traffic] NEW endpoint: GET /api/v2/internal/users
 ```
 
-`/api/v2/internal/users` is the planted shadow API. It exists in no config file and no codebase — only in traffic. The scanner detects it.
+`/api/v2/internal/users` is the planted shadow API. It exists in no config file and no codebase, only in traffic. The scanner detects it.
 
-**Terminal 3 — run the full scanner:**
+**Terminal 3 : run the full scanner:**
 ```bash
 python scanner/main.py
 ```
@@ -189,7 +189,7 @@ Expected output:
 [scanner] All 13 endpoints valid.
 
 [scanner] Shadow APIs detected:
-  !! GET /api/v2/internal/users — in traffic only, not in any config or repo
+  !! GET /api/v2/internal/users - in traffic only, not in any config or repo
 ```
 
 ---
@@ -207,12 +207,12 @@ Each one reads from `test_files/`, prints its findings with validation results, 
 
 ## Adding a new source to scan
 
-1. Create a new file in `scanner/parsers/` — e.g. `kubernetes_parser.py`
+1. Create a new file in `scanner/parsers/` - e.g. `kubernetes_parser.py`
 2. Write a function that returns a list of `APIEndpoint` objects using `create_endpoint()` from `schema.py`
 3. Add it to the `SCAN_CONFIG` dictionary in `main.py`
 4. Add the source string to `VALID_SOURCES` in `schema.py`
 
-The merger in `main.py` handles deduplication automatically — your new parser just needs to return the right format.
+The merger in `main.py` handles deduplication automatically. Your new parser just needs to return the right format.
 
 ---
 
@@ -233,7 +233,7 @@ The merger in `main.py` handles deduplication automatically — your new parser 
 
 This repository is the discovery stage of the SPECTRE platform. The output file `discovered_endpoints.json` feeds into:
 
-- **Classifier** — labels each endpoint as Active, Shadow, Zombie, or Rogue
-- **OWASP Checker** — tests each endpoint against API2, API4, API8, API9
-- **AI Layer** — generates plain-English risk summaries using LangChain + RAG
-- **Dashboard** — displays everything in a React monitoring interface
+- **Classifier** : labels each endpoint as Active, Shadow, Zombie, or Rogue
+- **OWASP Checker** : tests each endpoint against API2, API4, API8, API9
+- **AI Layer** : generates plain-English risk summaries using LangChain + RAG
+- **Dashboard** : displays everything in a React monitoring interface
