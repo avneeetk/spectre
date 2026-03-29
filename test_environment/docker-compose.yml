@@ -1,0 +1,10 @@
+version: "3.8"
+
+services:
+  shadow-service:
+    build: ./services/shadow_service
+    ports:
+      - "8000:8000"
+    environment:
+      - HTTP_PROXY=http://host.docker.internal:8080
+      - HTTPS_PROXY=http://host.docker.internal:8080
