@@ -1,0 +1,82 @@
+  [
+    {
+      "endpoint": "/api/v1/users",
+      "state": "Zombie",
+      "last_seen_days_ago": 210,
+      "auth_present": false,
+      "rate_limited": false,
+      "tls_enabled": true,
+      "in_gateway": false,
+      "owasp_flags": ["API2", "API4", "API9"]
+    },
+    {
+      "endpoint": "/api/v2/payments",
+      "state": "Shadow",
+      "last_seen_days_ago": 3,
+      "auth_present": false,
+      "rate_limited": false,
+      "tls_enabled": false,
+      "in_gateway": false,
+      "owasp_flags": ["API2", "API8", "API9"]
+    },
+    {
+      "endpoint": "/api/v1/products",
+      "state": "Active",
+      "last_seen_days_ago": 1,
+      "auth_present": true,
+      "rate_limited": true,
+      "tls_enabled": true,
+      "in_gateway": true,
+      "owasp_flags": []
+    },
+    {
+      "endpoint": "/api/v1/legacy-transfer",
+      "state": "Zombie",
+      "last_seen_days_ago": 180,
+      "auth_present": false,
+      "rate_limited": false,
+      "tls_enabled": false,
+      "in_gateway": false,
+      "owasp_flags": ["API2", "API4", "API8", "API9"]
+    },
+    {
+      "endpoint": "/api/debug/internal",
+      "state": "Rogue",
+      "last_seen_days_ago": 5,
+      "auth_present": false,
+      "rate_limited": false,
+      "tls_enabled": false,
+      "in_gateway": false,
+      "owasp_flags": ["API2", "API8", "API9"]
+    },
+    {
+      "endpoint": "/api/v2/accounts",
+      "state": "Shadow",
+      "last_seen_days_ago": 12,
+      "auth_present": false,
+      "rate_limited": true,
+      "tls_enabled": true,
+      "in_gateway": false,
+      "owasp_flags": ["API2", "API9"]
+    },
+    {
+      "endpoint": "/api/v1/admin",
+      "state": "Zombie",
+      "last_seen_days_ago": 300,
+      "auth_present": false,
+      "rate_limited": false,
+      "tls_enabled": false,
+      "in_gateway": false,
+      "owasp_flags": ["API2", "API4", "API8", "API9"]
+    },
+    {
+      "endpoint": "/api/v3/notifications",
+      "state": "Active",
+      "last_seen_days_ago": 0,
+      "auth_present": true,
+      "rate_limited": true,
+      "tls_enabled": true,
+      "in_gateway": true,
+      "owasp_flags": []
+    }
+  ]
