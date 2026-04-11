@@ -40,6 +40,9 @@ spectre-discovery/
 │       ├── kong_parser.py   ← reads Kong YAML configs, handles plugin-level auth
 │       ├── ast_parser.py    ← walks Python AST to find FastAPI/Flask route decorators
 │       └── traffic_parser.py← mitmproxy script, logs every HTTP endpoint observed
+├── backend/
+│   ├── main.py              ← FastAPI wrapper, exposes scanner over HTTP
+│   └── requirements.txt
 ├── test_environment/
 │   ├── docker-compose.yml   ← spins up mock services including a planted shadow API
 │   └── services/
@@ -194,6 +197,75 @@ Expected output:
 
 ---
 
+## Running the FastAPI backend
+
+The backend exposes the scanners over HTTP, so they can be called without running Python locally.
+
+### Start the backend
+```bash
+uvicorn backend.main:app --reload --port 8000
+```
+
+### Interactive API docs
+
+Once running, open this in your browser:
+```
+http://localhost:8000/docs
+```
+
+FastAPI generates a full interactive documentation page. You can test all endpoints directly from the browser without writing any code.
+
+---
+
+## API endpoints
+
+### `GET /ping`
+Wake-up check. Use this to verify the backend is running.
+
+**Response:**
+```json
+{"status": "ok", "service": "SPECTRE Discovery Engine"}
+```
+
+---
+
+### `POST /scan/sample`
+Runs the real parsers on the bundled test files in `test_files/`. No uploads needed.
+
+For the traffic log, it checks `output/traffic_log.json` first (real mitmproxy capture that we did above). If that doesn't exist, it falls back to `test_files/traffic_log.json` (sample data with 1 planted shadow API).
+
+You can tell which was used from the `traffic_source` field in the response : `"network env sample"` or `"hardcoded sample"`.
+
+**Response:**
+```json
+{
+  "total": 11,
+  "shadow_count": 1,
+  "no_auth_count": 5,
+  "sources_scanned": 4,
+  "traffic_source": "sample",
+  "endpoints": [ ...list of APIEndpoint objects... ]
+}
+```
+
+---
+
+### `POST /scan/upload`
+Accepts uploaded config files and runs the real parsers on them. Nginx and Kong parsers fall back to sample files for any source not provided.
+
+**Accepted fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `nginx` | `.conf` file | Nginx config to scan |
+| `kong` | `.yml` / `.yaml` file | Kong declarative config to scan |
+| `py` | `.py` file | Python service file to scan |
+| `traffic` | `.json` file | mitmproxy traffic log in SPECTRE schema format |
+
+**Response:** same format as `/scan/sample`.
+
+---
+
 ## Testing individual parsers
 ```bash
 python scanner/parsers/nginx_parser.py
@@ -226,6 +298,8 @@ The merger in `main.py` handles deduplication automatically. Your new parser jus
 | `mitmproxy` | Live HTTP traffic interception |
 | Docker Compose | Mock service environment |
 | `dataclasses` | Typed endpoint schema |
+| `FastAPI` | HTTP wrapper around the scanner for team integration |
+| `uvicorn` | ASGI server |
 
 ---
 

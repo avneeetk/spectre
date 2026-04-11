@@ -1,0 +1,22 @@
+{
+  "a9f3c2d11e4b": {
+    "id": "a9f3c2d11e4b",
+    "method": "GET",
+    "path": "/api/v2/internal/users",
+    "service_name": "shadow-service",
+    "sources": ["network_traffic"],
+    "in_repo": false,
+    "in_gateway": false,
+    "seen_in_traffic": true,
+    "auth_detected": false,
+    "auth_type": "none",
+    "status_codes": [200],
+    "last_seen": "2025-03-17T10:22:41Z",
+    "tags": ["traffic"],
+    "raw_context": "Observed at shadow-service — not in any config or codebase",
+    "also_found_in_conflict_with": null,
+    "state": "unknown",
+    "owasp_flags": [],
+    "risk_reason": ""
+  }
+}
