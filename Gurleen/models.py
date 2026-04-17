@@ -2,6 +2,7 @@ from pydantic import BaseModel, field_validator
 from enum import Enum
 from typing import Optional
 from datetime import datetime
+from typing import Dict, Any
 
 
 class APIState(str, Enum):
@@ -38,12 +39,12 @@ class DiscoveredEndpoint(BaseModel):
     seen_in_traffic:             bool
     auth_detected:               bool
     auth_type:                   str
-    path_conflict:               Optional[str]
+    path_conflict:               Optional[bool]
     status_codes:                list[int]
     confidence:                  float
     last_seen:                   Optional[datetime]
     tags:                        list[str]
-    raw_context:                 str
+    raw_context:                 Dict[str, Any]
     has_owner:                   bool = False   # default until Member 1 adds it
 
 
