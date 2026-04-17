@@ -1,0 +1,306 @@
+[
+  {
+    "endpoint": "/api/v1/users",
+    "method": "ANY",
+    "state": "Unknown",
+    "last_seen_days_ago": null,
+    "auth_present": true,
+    "rate_limited": false,
+    "tls_enabled": true,
+    "in_gateway": true,
+    "owasp_flags": [],
+    "service_name": "user-service",
+    "confidence": 0.0,
+    "in_repo": false,
+    "seen_in_traffic": false,
+    "sources": [
+      "nginx_config"
+    ],
+    "raw_context": "proxy_pass http://user-service:8000;\n        auth_jwt \"User API\";",
+    "also_found_in_conflict_with": null
+  },
+  {
+    "endpoint": "/api/v1/payments",
+    "method": "ANY",
+    "state": "Unknown",
+    "last_seen_days_ago": null,
+    "auth_present": true,
+    "rate_limited": false,
+    "tls_enabled": true,
+    "in_gateway": true,
+    "owasp_flags": [],
+    "service_name": "payment-service",
+    "confidence": 0.0,
+    "in_repo": false,
+    "seen_in_traffic": false,
+    "sources": [
+      "nginx_config"
+    ],
+    "raw_context": "proxy_pass http://payment-service:8001;\n        auth_basic \"Payment API\";",
+    "also_found_in_conflict_with": null
+  },
+  {
+    "endpoint": "/api/v1/products",
+    "method": "ANY",
+    "state": "Unknown",
+    "last_seen_days_ago": null,
+    "auth_present": false,
+    "rate_limited": false,
+    "tls_enabled": true,
+    "in_gateway": true,
+    "owasp_flags": [],
+    "service_name": "product-service",
+    "confidence": 0.0,
+    "in_repo": false,
+    "seen_in_traffic": false,
+    "sources": [
+      "nginx_config"
+    ],
+    "raw_context": "proxy_pass http://product-service:8002;",
+    "also_found_in_conflict_with": null
+  },
+  {
+    "endpoint": "/internal/debug/logs",
+    "method": "ANY",
+    "state": "Unknown",
+    "last_seen_days_ago": null,
+    "auth_present": false,
+    "rate_limited": false,
+    "tls_enabled": true,
+    "in_gateway": true,
+    "owasp_flags": [],
+    "service_name": "debug-service",
+    "confidence": 0.0,
+    "in_repo": false,
+    "seen_in_traffic": false,
+    "sources": [
+      "nginx_config"
+    ],
+    "raw_context": "proxy_pass http://debug-service:9000;",
+    "also_found_in_conflict_with": null
+  },
+  {
+    "endpoint": "/health",
+    "method": "ANY",
+    "state": "Unknown",
+    "last_seen_days_ago": null,
+    "auth_present": false,
+    "rate_limited": false,
+    "tls_enabled": true,
+    "in_gateway": true,
+    "owasp_flags": [],
+    "service_name": "unknown",
+    "confidence": 0.0,
+    "in_repo": false,
+    "seen_in_traffic": false,
+    "sources": [
+      "nginx_config"
+    ],
+    "raw_context": "return 200 \"ok\";",
+    "also_found_in_conflict_with": null
+  },
+  {
+    "endpoint": "/api/v1/users",
+    "method": "GET",
+    "state": "Unknown",
+    "last_seen_days_ago": null,
+    "auth_present": true,
+    "rate_limited": false,
+    "tls_enabled": true,
+    "in_gateway": true,
+    "owasp_flags": [],
+    "service_name": "user-service",
+    "confidence": 0.0,
+    "in_repo": true,
+    "seen_in_traffic": false,
+    "sources": [
+      "kong_gateway",
+      "code_repository"
+    ],
+    "raw_context": "Service: user-service | Route: get-users",
+    "also_found_in_conflict_with": null
+  },
+  {
+    "endpoint": "/api/v1/users",
+    "method": "POST",
+    "state": "Unknown",
+    "last_seen_days_ago": null,
+    "auth_present": true,
+    "rate_limited": false,
+    "tls_enabled": true,
+    "in_gateway": true,
+    "owasp_flags": [],
+    "service_name": "user-service",
+    "confidence": 0.0,
+    "in_repo": true,
+    "seen_in_traffic": false,
+    "sources": [
+      "kong_gateway",
+      "code_repository"
+    ],
+    "raw_context": "Service: user-service | Route: create-user",
+    "also_found_in_conflict_with": null
+  },
+  {
+    "endpoint": "/api/v1/payments",
+    "method": "GET",
+    "state": "Unknown",
+    "last_seen_days_ago": null,
+    "auth_present": true,
+    "rate_limited": false,
+    "tls_enabled": true,
+    "in_gateway": true,
+    "owasp_flags": [],
+    "service_name": "payment-service",
+    "confidence": 0.0,
+    "in_repo": true,
+    "seen_in_traffic": false,
+    "sources": [
+      "kong_gateway",
+      "code_repository"
+    ],
+    "raw_context": "Service: payment-service | Route: get-payments",
+    "also_found_in_conflict_with": null
+  },
+  {
+    "endpoint": "/api/v1/payments",
+    "method": "POST",
+    "state": "Unknown",
+    "last_seen_days_ago": null,
+    "auth_present": false,
+    "rate_limited": false,
+    "tls_enabled": true,
+    "in_gateway": true,
+    "owasp_flags": [],
+    "service_name": "payment-service",
+    "confidence": 0.0,
+    "in_repo": true,
+    "seen_in_traffic": false,
+    "sources": [
+      "kong_gateway",
+      "code_repository"
+    ],
+    "raw_context": "Service: payment-service | Route: create-payment",
+    "also_found_in_conflict_with": null
+  },
+  {
+    "endpoint": "/api/v0/data",
+    "method": "GET",
+    "state": "Unknown",
+    "last_seen_days_ago": null,
+    "auth_present": false,
+    "rate_limited": false,
+    "tls_enabled": true,
+    "in_gateway": true,
+    "owasp_flags": [],
+    "service_name": "legacy-service",
+    "confidence": 0.0,
+    "in_repo": false,
+    "seen_in_traffic": false,
+    "sources": [
+      "kong_gateway"
+    ],
+    "raw_context": "Service: legacy-service | Route: legacy-data",
+    "also_found_in_conflict_with": null
+  },
+  {
+    "endpoint": "/api/v1/users/{user_id}",
+    "method": "GET",
+    "state": "Unknown",
+    "last_seen_days_ago": null,
+    "auth_present": false,
+    "rate_limited": false,
+    "tls_enabled": true,
+    "in_gateway": false,
+    "owasp_flags": [],
+    "service_name": "test_fastapi_service",
+    "confidence": 0.0,
+    "in_repo": true,
+    "seen_in_traffic": false,
+    "sources": [
+      "code_repository"
+    ],
+    "raw_context": "File: /Users/avneetkaur/spectre/spectre/Neeraj/test_files/test_fastapi_service.py | Function: get_user",
+    "also_found_in_conflict_with": null
+  },
+  {
+    "endpoint": "/api/v1/users/{user_id}",
+    "method": "DELETE",
+    "state": "Unknown",
+    "last_seen_days_ago": null,
+    "auth_present": true,
+    "rate_limited": false,
+    "tls_enabled": true,
+    "in_gateway": false,
+    "owasp_flags": [],
+    "service_name": "test_fastapi_service",
+    "confidence": 0.0,
+    "in_repo": true,
+    "seen_in_traffic": false,
+    "sources": [
+      "code_repository"
+    ],
+    "raw_context": "File: /Users/avneetkaur/spectre/spectre/Neeraj/test_files/test_fastapi_service.py | Function: delete_user",
+    "also_found_in_conflict_with": null
+  },
+  {
+    "endpoint": "/internal/debug",
+    "method": "GET",
+    "state": "Unknown",
+    "last_seen_days_ago": null,
+    "auth_present": false,
+    "rate_limited": false,
+    "tls_enabled": true,
+    "in_gateway": false,
+    "owasp_flags": [],
+    "service_name": "test_fastapi_service",
+    "confidence": 0.0,
+    "in_repo": true,
+    "seen_in_traffic": false,
+    "sources": [
+      "code_repository"
+    ],
+    "raw_context": "File: /Users/avneetkaur/spectre/spectre/Neeraj/test_files/test_fastapi_service.py | Function: debug",
+    "also_found_in_conflict_with": null
+  },
+  {
+    "endpoint": "/health",
+    "method": "GET",
+    "state": "Unknown",
+    "last_seen_days_ago": null,
+    "auth_present": false,
+    "rate_limited": false,
+    "tls_enabled": true,
+    "in_gateway": false,
+    "owasp_flags": [],
+    "service_name": "test_fastapi_service",
+    "confidence": 0.0,
+    "in_repo": true,
+    "seen_in_traffic": false,
+    "sources": [
+      "code_repository"
+    ],
+    "raw_context": "File: /Users/avneetkaur/spectre/spectre/Neeraj/test_files/test_fastapi_service.py | Function: health",
+    "also_found_in_conflict_with": null
+  },
+  {
+    "endpoint": "/api/v2/internal/users",
+    "method": "GET",
+    "state": "Shadow",
+    "last_seen_days_ago": 396,
+    "auth_present": false,
+    "rate_limited": false,
+    "tls_enabled": true,
+    "in_gateway": false,
+    "owasp_flags": [],
+    "service_name": "shadow-service",
+    "confidence": 0.0,
+    "in_repo": false,
+    "seen_in_traffic": true,
+    "sources": [
+      "network_traffic"
+    ],
+    "raw_context": "Observed at shadow-service \u2014 not in any config or codebase",
+    "also_found_in_conflict_with": null
+  }
+]

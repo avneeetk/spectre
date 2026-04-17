@@ -1,0 +1,122 @@
+[
+  {
+    "endpoint": "/api/v1/users",
+    "state": "Unknown",
+    "risk_summary": "AI analysis unavailable for this endpoint. M3 error: Error code: 401 - {'error': {'message': 'Invalid API Key', 'type': 'invalid_request_error', 'code': 'invalid_api_key'}}",
+    "violations": [],
+    "recommended_action": "Start/fix the M3 service and re-run the pipeline to generate remediation guidance.",
+    "technical_fix": "M3 did not return a technical_fix for this endpoint (see M3 logs)."
+  },
+  {
+    "endpoint": "/api/v1/payments",
+    "state": "Unknown",
+    "risk_summary": "AI analysis unavailable for this endpoint. M3 error: Error code: 401 - {'error': {'message': 'Invalid API Key', 'type': 'invalid_request_error', 'code': 'invalid_api_key'}}",
+    "violations": [],
+    "recommended_action": "Start/fix the M3 service and re-run the pipeline to generate remediation guidance.",
+    "technical_fix": "M3 did not return a technical_fix for this endpoint (see M3 logs)."
+  },
+  {
+    "endpoint": "/api/v1/products",
+    "state": "Unknown",
+    "risk_summary": "AI analysis unavailable for this endpoint. M3 error: Error code: 401 - {'error': {'message': 'Invalid API Key', 'type': 'invalid_request_error', 'code': 'invalid_api_key'}}",
+    "violations": [],
+    "recommended_action": "Start/fix the M3 service and re-run the pipeline to generate remediation guidance.",
+    "technical_fix": "M3 did not return a technical_fix for this endpoint (see M3 logs)."
+  },
+  {
+    "endpoint": "/internal/debug/logs",
+    "state": "Unknown",
+    "risk_summary": "AI analysis unavailable for this endpoint. M3 error: Error code: 401 - {'error': {'message': 'Invalid API Key', 'type': 'invalid_request_error', 'code': 'invalid_api_key'}}",
+    "violations": [],
+    "recommended_action": "Start/fix the M3 service and re-run the pipeline to generate remediation guidance.",
+    "technical_fix": "M3 did not return a technical_fix for this endpoint (see M3 logs)."
+  },
+  {
+    "endpoint": "/health",
+    "state": "Unknown",
+    "risk_summary": "AI analysis unavailable for this endpoint. M3 error: Error code: 401 - {'error': {'message': 'Invalid API Key', 'type': 'invalid_request_error', 'code': 'invalid_api_key'}}",
+    "violations": [],
+    "recommended_action": "Start/fix the M3 service and re-run the pipeline to generate remediation guidance.",
+    "technical_fix": "M3 did not return a technical_fix for this endpoint (see M3 logs)."
+  },
+  {
+    "endpoint": "/api/v1/users",
+    "state": "Unknown",
+    "risk_summary": "AI analysis unavailable for this endpoint. M3 error: Error code: 401 - {'error': {'message': 'Invalid API Key', 'type': 'invalid_request_error', 'code': 'invalid_api_key'}}",
+    "violations": [],
+    "recommended_action": "Start/fix the M3 service and re-run the pipeline to generate remediation guidance.",
+    "technical_fix": "M3 did not return a technical_fix for this endpoint (see M3 logs)."
+  },
+  {
+    "endpoint": "/api/v1/users",
+    "state": "Unknown",
+    "risk_summary": "AI analysis unavailable for this endpoint. M3 error: Error code: 401 - {'error': {'message': 'Invalid API Key', 'type': 'invalid_request_error', 'code': 'invalid_api_key'}}",
+    "violations": [],
+    "recommended_action": "Start/fix the M3 service and re-run the pipeline to generate remediation guidance.",
+    "technical_fix": "M3 did not return a technical_fix for this endpoint (see M3 logs)."
+  },
+  {
+    "endpoint": "/api/v1/payments",
+    "state": "Unknown",
+    "risk_summary": "AI analysis unavailable for this endpoint. M3 error: Error code: 401 - {'error': {'message': 'Invalid API Key', 'type': 'invalid_request_error', 'code': 'invalid_api_key'}}",
+    "violations": [],
+    "recommended_action": "Start/fix the M3 service and re-run the pipeline to generate remediation guidance.",
+    "technical_fix": "M3 did not return a technical_fix for this endpoint (see M3 logs)."
+  },
+  {
+    "endpoint": "/api/v1/payments",
+    "state": "Unknown",
+    "risk_summary": "AI analysis unavailable for this endpoint. M3 error: Error code: 401 - {'error': {'message': 'Invalid API Key', 'type': 'invalid_request_error', 'code': 'invalid_api_key'}}",
+    "violations": [],
+    "recommended_action": "Start/fix the M3 service and re-run the pipeline to generate remediation guidance.",
+    "technical_fix": "M3 did not return a technical_fix for this endpoint (see M3 logs)."
+  },
+  {
+    "endpoint": "/api/v0/data",
+    "state": "Unknown",
+    "risk_summary": "AI analysis unavailable for this endpoint. M3 error: Error code: 401 - {'error': {'message': 'Invalid API Key', 'type': 'invalid_request_error', 'code': 'invalid_api_key'}}",
+    "violations": [],
+    "recommended_action": "Start/fix the M3 service and re-run the pipeline to generate remediation guidance.",
+    "technical_fix": "M3 did not return a technical_fix for this endpoint (see M3 logs)."
+  },
+  {
+    "endpoint": "/api/v1/users/{user_id}",
+    "state": "Unknown",
+    "risk_summary": "AI analysis unavailable for this endpoint. M3 error: Error code: 401 - {'error': {'message': 'Invalid API Key', 'type': 'invalid_request_error', 'code': 'invalid_api_key'}}",
+    "violations": [],
+    "recommended_action": "Start/fix the M3 service and re-run the pipeline to generate remediation guidance.",
+    "technical_fix": "M3 did not return a technical_fix for this endpoint (see M3 logs)."
+  },
+  {
+    "endpoint": "/api/v1/users/{user_id}",
+    "state": "Unknown",
+    "risk_summary": "AI analysis unavailable for this endpoint. M3 error: Error code: 401 - {'error': {'message': 'Invalid API Key', 'type': 'invalid_request_error', 'code': 'invalid_api_key'}}",
+    "violations": [],
+    "recommended_action": "Start/fix the M3 service and re-run the pipeline to generate remediation guidance.",
+    "technical_fix": "M3 did not return a technical_fix for this endpoint (see M3 logs)."
+  },
+  {
+    "endpoint": "/internal/debug",
+    "state": "Unknown",
+    "risk_summary": "AI analysis unavailable for this endpoint. M3 error: Error code: 401 - {'error': {'message': 'Invalid API Key', 'type': 'invalid_request_error', 'code': 'invalid_api_key'}}",
+    "violations": [],
+    "recommended_action": "Start/fix the M3 service and re-run the pipeline to generate remediation guidance.",
+    "technical_fix": "M3 did not return a technical_fix for this endpoint (see M3 logs)."
+  },
+  {
+    "endpoint": "/health",
+    "state": "Unknown",
+    "risk_summary": "AI analysis unavailable for this endpoint. M3 error: Error code: 401 - {'error': {'message': 'Invalid API Key', 'type': 'invalid_request_error', 'code': 'invalid_api_key'}}",
+    "violations": [],
+    "recommended_action": "Start/fix the M3 service and re-run the pipeline to generate remediation guidance.",
+    "technical_fix": "M3 did not return a technical_fix for this endpoint (see M3 logs)."
+  },
+  {
+    "endpoint": "/api/v2/internal/users",
+    "state": "Shadow",
+    "risk_summary": "AI analysis unavailable for this endpoint. M3 error: Error code: 401 - {'error': {'message': 'Invalid API Key', 'type': 'invalid_request_error', 'code': 'invalid_api_key'}}",
+    "violations": [],
+    "recommended_action": "Start/fix the M3 service and re-run the pipeline to generate remediation guidance.",
+    "technical_fix": "M3 did not return a technical_fix for this endpoint (see M3 logs)."
+  }
+]
