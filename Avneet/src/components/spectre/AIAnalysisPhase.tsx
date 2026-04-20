@@ -65,13 +65,18 @@ const AIAnalysisPhase = ({ onComplete }: AIAnalysisPhaseProps) => {
     setMitigStepIdx(0);
     setMitigShowRec(false);
 
+    const STEP_MS = 1700; // slowed down so users can actually read
+    const API_PAUSE_MS = 1400;
+
     steps.forEach((_, i) => {
-      timers.push(setTimeout(() => setMitigStepIdx(i + 1), (i + 1) * 1000));
+      timers.push(setTimeout(() => setMitigStepIdx(i + 1), (i + 1) * STEP_MS));
     });
-    timers.push(setTimeout(() => setMitigShowRec(true), (steps.length + 1) * 1000));
-    timers.push(setTimeout(() => {
-      setMitigApiIdx((prev) => prev + 1);
-    }, (steps.length + 2) * 1000 + 1000));
+    timers.push(setTimeout(() => setMitigShowRec(true), (steps.length + 1) * STEP_MS));
+    timers.push(
+      setTimeout(() => {
+        setMitigApiIdx((prev) => prev + 1);
+      }, (steps.length + 1) * STEP_MS + API_PAUSE_MS)
+    );
 
     return () => timers.forEach(clearTimeout);
   }, [subStep, mitigApiIdx]);

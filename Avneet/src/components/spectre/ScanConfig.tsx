@@ -9,7 +9,11 @@ interface ScanConfigProps {
 }
 
 const ScanConfig = ({ onContinue, onBack }: ScanConfigProps) => {
-  const [envName] = useState(SCAN_CONFIG.environment_name);
+  const [envName, setEnvName] = useState(SCAN_CONFIG.environment_name);
+  const [gatewayPath, setGatewayPath] = useState(SCAN_CONFIG.gateway_config_path);
+  const [repoPath, setRepoPath] = useState(SCAN_CONFIG.repo_path);
+  const [networkInterface, setNetworkInterface] = useState(SCAN_CONFIG.network_interface);
+  const [dockerSocket, setDockerSocket] = useState(SCAN_CONFIG.docker_socket);
   const [toggles, setToggles] = useState([true, true, true, true]);
   const [scanDepth, setScanDepth] = useState<"quick" | "full">("full");
 
@@ -40,14 +44,48 @@ const ScanConfig = ({ onContinue, onBack }: ScanConfigProps) => {
           <input
             type="text"
             value={envName}
-            readOnly
+            onChange={(e) => setEnvName(e.target.value)}
             className="mb-4 w-full rounded-lg bg-input border border-input-border px-3 py-2 text-sm text-foreground outline-none"
           />
-          <div className="space-y-1 rounded-lg bg-input border border-input-border p-3 font-mono text-[11px] text-muted-foreground">
-            <div>Gateway config · <span className="text-foreground">{SCAN_CONFIG.gateway_config_path}</span></div>
-            <div>Code repos · <span className="text-foreground">{SCAN_CONFIG.repo_path}</span></div>
-            <div>Network interface · <span className="text-foreground">{SCAN_CONFIG.network_interface}</span></div>
-            <div>Docker socket · <span className="text-foreground">{SCAN_CONFIG.docker_socket}</span></div>
+          <div className="space-y-3 rounded-lg bg-input border border-input-border p-3">
+            <div>
+              <label className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">Gateway config path</label>
+              <input
+                type="text"
+                value={gatewayPath}
+                onChange={(e) => setGatewayPath(e.target.value)}
+                className="w-full rounded-md bg-background border border-input-border px-2.5 py-2 font-mono text-[11px] text-foreground outline-none"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">Repository path</label>
+              <input
+                type="text"
+                value={repoPath}
+                onChange={(e) => setRepoPath(e.target.value)}
+                className="w-full rounded-md bg-background border border-input-border px-2.5 py-2 font-mono text-[11px] text-foreground outline-none"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">Network interface</label>
+                <input
+                  type="text"
+                  value={networkInterface}
+                  onChange={(e) => setNetworkInterface(e.target.value)}
+                  className="w-full rounded-md bg-background border border-input-border px-2.5 py-2 font-mono text-[11px] text-foreground outline-none"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">Docker socket</label>
+                <input
+                  type="text"
+                  value={dockerSocket}
+                  onChange={(e) => setDockerSocket(e.target.value)}
+                  className="w-full rounded-md bg-background border border-input-border px-2.5 py-2 font-mono text-[11px] text-foreground outline-none"
+                />
+              </div>
+            </div>
           </div>
           <p className="mt-2 text-[11px] text-muted-foreground">
             SPECTRE runs inside your infrastructure and reads these paths directly.

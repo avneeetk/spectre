@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
-import { ONBOARDING_ANSWERS } from "@/data/mockData";
 import NavBar from "./NavBar";
 import { useToast } from "@/hooks/use-toast";
 import { postOnboarding } from "@/api/client";
@@ -89,11 +88,11 @@ const QUESTIONS: {
 ];
 
 const defaultAnswers: Record<QuestionId, string | string[]> = {
-  system_type: ONBOARDING_ANSWERS.system_type,
-  data_handled: [...ONBOARDING_ANSWERS.data_handled],
-  regulations: [...ONBOARDING_ANSWERS.regulations],
-  critical_service: ONBOARDING_ANSWERS.critical_service_description,
-  api_consumers: [...ONBOARDING_ANSWERS.api_consumers],
+  system_type: "",
+  data_handled: [],
+  regulations: [],
+  critical_service: "",
+  api_consumers: [],
 };
 
 const SUMMARY_LABELS: Record<QuestionId, string> = {

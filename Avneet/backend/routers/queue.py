@@ -44,7 +44,7 @@ def get_queue() -> list[dict]:
 def set_queue_action(endpoint_id: str, body: dict) -> dict:
     key = unquote(endpoint_id)
     action = body.get("action")
-    if action not in {"approve", "dismiss"}:
+    if action not in {"pending", "approve", "dismiss"}:
         raise HTTPException(status_code=400, detail="Invalid action")
 
     actions = _load_actions()

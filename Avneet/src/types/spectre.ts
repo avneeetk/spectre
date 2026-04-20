@@ -37,6 +37,12 @@ export interface ApiEndpointUI {
   ai_summary?: string | null;
   ai_next_step?: string | null;
   technical_fix?: string | null;
+  state_reason?: string | null;
+  m2_data_sensitivity?: string | null;
+  m2_sensitivity_score?: number | null;
+  m2_risk_score?: number | null;
+  m2_risk_factors?: string[] | null;
+  m2_owasp_failures?: unknown[] | null;
   mitigation_steps?: { step: number; action: string; finding: string }[];
   mitigation_recommendation?: string;
   mitigation_detail?: string;

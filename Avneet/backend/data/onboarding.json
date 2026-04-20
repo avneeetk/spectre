@@ -1,19 +1,13 @@
 {
-  "system_type": "fintech",
+  "system_type": "other",
   "data_handled": [
-    "financial_transactions",
-    "customer_personal_data",
-    "authentication_identity"
+    "customer_personal_data"
   ],
   "regulations": [
-    "pci",
-    "gdpr"
+    "soc2"
   ],
-  "critical_service": "processes customer payments and manages bank account balances",
+  "critical_service": "mmmmmmmmmmmmm",
   "api_consumers": [
-    "public_internet",
-    "mobile_apps",
-    "partner_apis",
-    "internal_services"
+    "third_party_vendors"
   ]
 }

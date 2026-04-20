@@ -351,6 +351,19 @@ def _enrich_for_ui(canonical: dict, ui_seed: dict, onboarding: dict, agent: dict
             }
         )
 
+    derived_flags: list[str] = []
+    for cid, result in (checks or {}).items():
+        if not isinstance(result, dict):
+            continue
+        if result.get("passed") is False:
+            derived_flags.append(str(cid))
+
+    owasp_flags = canonical.get("owasp_flags", []) or []
+    if not isinstance(owasp_flags, list):
+        owasp_flags = []
+    if not owasp_flags and derived_flags:
+        owasp_flags = derived_flags
+
     out: dict[str, Any] = dict(ui_seed)
     out.update(
         {
@@ -365,7 +378,7 @@ def _enrich_for_ui(canonical: dict, ui_seed: dict, onboarding: dict, agent: dict
             "in_gateway": in_gateway,
             "service_name": canonical.get("service_name", "unknown"),
             "confidence": float(canonical.get("confidence") or 0.0),
-            "owasp_flags": canonical.get("owasp_flags", []) or [],
+            "owasp_flags": owasp_flags,
             "risk_summary": canonical.get("risk_summary"),
             "violations": canonical.get("violations", []) or [],
             "recommended_action": canonical.get("recommended_action"),

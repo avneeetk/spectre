@@ -70,10 +70,25 @@ const Dashboard = ({ onNewScan }: DashboardProps) => {
       await refresh();
     }
   };
+  const handleUndo = async (apiId: string) => {
+    setDecommQueue((q) => q.map((d) => (d.api_id === apiId ? { ...d, status: "pending" } : d)));
+    if (resolvedMode === "live") {
+      await postQueueAction(apiId, "pending").catch(() => null);
+      await refresh();
+    }
+  };
   const handleDismiss = async (apiId: string) => {
     setDecommQueue((q) => q.filter((d) => d.api_id !== apiId));
     if (resolvedMode === "live") {
       await postQueueAction(apiId, "dismiss").catch(() => null);
+      await refresh();
+    }
+  };
+
+  const handleAddToQueue = async (apiId: string) => {
+    setDecommQueue((q) => (q.some((d) => d.api_id === apiId) ? q : [...q, { api_id: apiId, status: "pending", added_at: new Date().toISOString() }]));
+    if (resolvedMode === "live") {
+      await postQueueAction(apiId, "pending").catch(() => null);
       await refresh();
     }
   };
@@ -113,13 +128,13 @@ const Dashboard = ({ onNewScan }: DashboardProps) => {
           </div>
         </nav>
         <KnowledgeGraphTab apis={inventory} serviceContext={serviceContext} onSelectApi={(id) => { setSelectedApi(id); }} />
-        {selectedApiData && (
+      {selectedApiData && (
           <EndpointModal
             api={selectedApiData}
             serviceContext={serviceContext}
             decommQueue={decommQueue}
             onClose={() => setSelectedApi(null)}
-            onAddToDecomm={(id) => setDecommQueue((q) => [...q, { api_id: id, status: "pending", added_at: new Date().toISOString() }])}
+            onAddToDecomm={handleAddToQueue}
           />
         )}
       </div>
@@ -336,6 +351,13 @@ const Dashboard = ({ onNewScan }: DashboardProps) => {
                           </button>
                         </div>
                       )}
+                      {approved && (
+                        <div className="flex gap-2">
+                          <button onClick={(e) => { e.stopPropagation(); handleUndo(item.api_id); }} className="rounded-lg border border-border px-3 py-1 text-[10px] font-medium text-muted-foreground hover:bg-muted transition-colors">
+                            Undo
+                          </button>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -368,7 +390,7 @@ const Dashboard = ({ onNewScan }: DashboardProps) => {
           serviceContext={serviceContext}
           decommQueue={decommQueue}
           onClose={() => setSelectedApi(null)}
-          onAddToDecomm={(id) => setDecommQueue((q) => [...q, { api_id: id, status: "pending", added_at: new Date().toISOString() }])}
+          onAddToDecomm={handleAddToQueue}
         />
       )}
     </div>

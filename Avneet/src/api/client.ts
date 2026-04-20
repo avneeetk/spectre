@@ -11,7 +11,7 @@ async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
-export type QueueAction = "approve" | "dismiss";
+export type QueueAction = "pending" | "approve" | "dismiss";
 
 export function getHealth(init?: RequestInit): Promise<{ status: string }> {
   return fetchJson("/health", init);

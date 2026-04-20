@@ -3,6 +3,7 @@ import { Server, Code, Wifi, Container, Check } from "lucide-react";
 import { SCAN_LOG_LINES, DISCOVERED_APIS } from "@/data/mockData";
 import PhaseIndicator from "./PhaseIndicator";
 import NavBar from "./NavBar";
+import { useSpectreData } from "@/providers/SpectreDataProvider";
 
 interface DiscoveryPhaseProps {
   onComplete: () => void;
@@ -24,6 +25,7 @@ const sourceCards = [
 ];
 
 const DiscoveryPhase = ({ onComplete }: DiscoveryPhaseProps) => {
+  const { inventory, refresh, resolvedMode } = useSpectreData();
   const [logLines, setLogLines] = useState<typeof SCAN_LOG_LINES>([]);
   const [activeSources, setActiveSources] = useState<Set<string>>(new Set());
   const [completedSources, setCompletedSources] = useState<Set<string>>(new Set());
@@ -33,30 +35,38 @@ const DiscoveryPhase = ({ onComplete }: DiscoveryPhaseProps) => {
   const logRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // Ensure we have the latest inventory (live mode) before showing counts.
+    refresh().catch(() => null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
     const timers: ReturnType<typeof setTimeout>[] = [];
     const sourceLastLine: Record<string, number> = {};
     SCAN_LOG_LINES.forEach((line) => {
       sourceLastLine[line.source] = Math.max(sourceLastLine[line.source] || 0, line.delay);
     });
 
+    const targetCount = resolvedMode === "live" ? (inventory?.length || 0) : DISCOVERED_APIS.length;
+
     SCAN_LOG_LINES.forEach((line, i) => {
       timers.push(
         setTimeout(() => {
           setLogLines((prev) => [...prev, line]);
           setActiveSources((prev) => new Set(prev).add(line.source));
-          setApiCount(Math.min(Math.floor((i / SCAN_LOG_LINES.length) * 15) + 1, 15));
+          setApiCount(Math.min(Math.floor((i / SCAN_LOG_LINES.length) * targetCount) + 1, targetCount));
           if (line.delay === sourceLastLine[line.source]) {
             setTimeout(() => setCompletedSources((prev) => new Set(prev).add(line.source)), 300);
           }
           if (i === SCAN_LOG_LINES.length - 1) {
-            setApiCount(15);
+            setApiCount(targetCount);
             setTimeout(() => setAllDone(true), 800);
           }
         }, line.delay)
       );
     });
     return () => timers.forEach(clearTimeout);
-  }, []);
+  }, [inventory?.length, resolvedMode]);
 
   useEffect(() => {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;

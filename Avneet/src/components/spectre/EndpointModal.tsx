@@ -72,6 +72,11 @@ const EndpointModal = ({ api, serviceContext, decommQueue, onClose, onAddToDecom
                 <div className={`text-3xl font-medium tabular-nums ${scoreColor(api.technical_score)}`}>{api.technical_score}</div>
                 <div className="text-[10px] text-muted-foreground mt-1">OWASP security analysis · M2</div>
                 <div className="mt-1 text-[10px] text-muted-foreground">{api.owasp_flags.length} flags raised</div>
+                {api.state_reason && (
+                  <div className="mt-2 text-[10px] text-muted-foreground">
+                    <span className="text-muted-foreground/70">Reason:</span> {api.state_reason}
+                  </div>
+                )}
               </div>
               <div className="rounded-xl border border-border bg-background p-4">
                 <div className="text-[11px] text-muted-foreground mb-1">Importance score</div>
@@ -88,6 +93,41 @@ const EndpointModal = ({ api, serviceContext, decommQueue, onClose, onAddToDecom
             </div>
 
             <div className="h-px bg-border" />
+
+            {/* Section 1.5 — Classifier context (M2) */}
+            {(api.m2_risk_score != null || (api.m2_risk_factors && api.m2_risk_factors.length > 0) || api.m2_data_sensitivity) && (
+              <>
+                <div>
+                  <h3 className="mb-3 text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Classifier context (M2)</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-lg border border-border bg-background p-3">
+                      <div className="text-[10px] text-muted-foreground mb-1">M2 risk score</div>
+                      <div className="text-sm font-medium text-foreground tabular-nums">
+                        {api.m2_risk_score != null ? api.m2_risk_score.toFixed(2) : "—"}
+                      </div>
+                      {api.m2_data_sensitivity && (
+                        <div className="mt-1 text-[10px] text-muted-foreground">
+                          Sensitivity: <span className="text-foreground">{api.m2_data_sensitivity}</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="rounded-lg border border-border bg-background p-3">
+                      <div className="text-[10px] text-muted-foreground mb-1">Risk factors</div>
+                      {api.m2_risk_factors && api.m2_risk_factors.length > 0 ? (
+                        <ul className="list-disc pl-4 text-[11px] text-muted-foreground space-y-0.5">
+                          {api.m2_risk_factors.slice(0, 4).map((f) => (
+                            <li key={f}>{f}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <div className="text-[11px] text-muted-foreground">—</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="h-px bg-border" />
+              </>
+            )}
 
             {/* Section 2 — OWASP */}
             <div>
