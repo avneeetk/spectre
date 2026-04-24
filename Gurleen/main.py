@@ -6,12 +6,12 @@ from typing import Optional
 
 from models import DiscoveredEndpoint, EndpointRecord, APIState, OWASPResult, DataSensitivity
 
-# Your existing classification functions
+# Classification functions
 from classification.classifier import classify
 from classification.sensitivity import detect_sensitivity
 
 # OWASP checks (owasp/checks.py)
-# from owasp.checker import run_all_checks
+from owasp.checker import run_all_checks
 
 # risk.py is empty for now — this try/except means the app still starts
 try:
@@ -102,22 +102,22 @@ def owasp_scan(req: OWASPRequest):
         )
 
 
-    # results = run_all_checks(
-    #     ep=req.endpoint,
-    #     base_url=req.base_url,
-    #     active=req.active,
-    # )
+    results = run_all_checks(
+        ep=req.endpoint,
+        base_url=req.base_url,
+        active=req.active,
+    )
 
-    # failures = [r for r in results if not r.passed]
+    failures = [r for r in results if not r.passed]
 
-    # return OWASPResponse(
-    #     endpoint_id=req.endpoint.id,
-    #     path=req.endpoint.path,
-    #     checks_run=len(results),
-    #     failures=failures,
-    #     all_passed=len(failures) == 0,
-    #     scanned_at=datetime.now(timezone.utc),
-    # )
+    return OWASPResponse(
+        endpoint_id=req.endpoint.id,
+        path=req.endpoint.path,
+        checks_run=len(results),
+        failures=failures,
+        all_passed=len(failures) == 0,
+        scanned_at=datetime.now(timezone.utc),
+    )
 
 
 

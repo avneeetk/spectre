@@ -39,12 +39,12 @@ class DiscoveredEndpoint(BaseModel):
     seen_in_traffic:             bool
     auth_detected:               bool
     auth_type:                   str
-    path_conflict:               Optional[bool]
+    path_conflict:               Optional[str]
     status_codes:                list[int]
     confidence:                  float
     last_seen:                   Optional[datetime]
     tags:                        list[str]
-    raw_context:                 Dict[str, Any]
+    raw_context:                 str
     has_owner:                   bool = False   # default until Member 1 adds it
 
 
