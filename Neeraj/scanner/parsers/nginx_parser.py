@@ -1,54 +1,105 @@
 import re
 import sys
 import os
+import hashlib
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 from scanner.schema import create_endpoint, validate_endpoint
+
+
+def _extract_server_blocks(content):
+    """
+    Split an nginx config into (server_name, block_content) tuples.
+    Handles multiple server blocks in a single file.
+    Falls back to ("unknown", full_content) if no server blocks found.
+    """
+    results = []
+    depth = 0
+    in_server = False
+    block_start = 0
+    i = 0
+
+    while i < len(content):
+        if not in_server:
+            if content[i:i+6] == 'server' and (i == 0 or not content[i-1].isalnum()):
+                j = i + 6
+                while j < len(content) and content[j] in ' \t\n\r':
+                    j += 1
+                if j < len(content) and content[j] == '{':
+                    in_server = True
+                    depth = 1
+                    block_start = j + 1
+                    i = j + 1
+                    continue
+        else:
+            if content[i] == '{':
+                depth += 1
+            elif content[i] == '}':
+                depth -= 1
+                if depth == 0:
+                    block_content = content[block_start:i]
+                    sn_match = re.search(r'server_name\s+([^\s;]+)', block_content)
+                    server_name = sn_match.group(1) if sn_match else "unknown"
+                    results.append((server_name, block_content))
+                    in_server = False
+        i += 1
+
+    # Fallback: no server blocks found, treat whole file as one block
+    if not results:
+        results.append(("unknown", content))
+
+    return results
+
 
 def parse_nginx_config(filepath):
     """
     Read an Nginx config file and return a list
     of APIEndpoint objects — one per location block.
+
+    Fixes applied:
+      1. Regex handles all 4 location modifier types: ~, ~*, =, ^~
+      2. Group references updated to match new capture groups
+      3. Modifier stored in tags (e.g. "location:~")
+      4. server_name extracted per server block — used in ID to prevent
+         collisions when multiple servers share the same path (e.g. "/")
+      5. extract_service_name handles "set $upstream" pattern
     """
-    # Open the file and read its entire contents as a string
     with open(filepath, 'r', encoding='utf-8') as f:
         content = f.read()
 
-    # Use regex to find every location block
-    # Pattern: the word "location", then the path, then { block content }
-    pattern = r'location\s+([^\s{]+)\s*\{([^}]+)\}'
-    matches = re.finditer(pattern, content, re.DOTALL)
-
+    server_blocks = _extract_server_blocks(content)
     results = []
 
-    for match in matches:
-        # match.group(1) is the path, e.g. /api/v1/users
-        # match.group(2) is everything inside the { }
-        path = match.group(1).strip()
-        block = match.group(2).strip()
+    for server_name, block_content in server_blocks:
+        # Fix 1: regex handles optional modifier + one level of nested braces
+        pattern = r'location\s+(~\*?|=|\^\~)?\s*([^\s{]+)\s*\{([^}]*(?:\{[^}]*\}[^}]*)*)\}'
+        matches = re.finditer(pattern, block_content, re.DOTALL)
 
-        # Detect auth by checking for known auth keywords
-        auth_detected, auth_type = detect_auth(block)
+        for match in matches:
+            # Fix 2: updated group references
+            modifier     = match.group(1) or "exact"
+            path         = match.group(2).strip()
+            block        = match.group(3).strip()
 
-        # Extract the upstream service name from proxy_pass
-        service_name = extract_service_name(block)
+            auth_detected, auth_type = detect_auth(block)
+            service_name = extract_service_name(block)
 
-        # Build a confidence score — lower if it looks unusual
-        confidence = 0.9 if 'proxy_pass' in block else 0.6
+            endpoint = create_endpoint(
+                method="ANY",
+                path=path,
+                service_name=service_name,
+                source="nginx_config",
+                auth_detected=auth_detected,
+                auth_type=auth_type,
+                # Fix 3: modifier in tags
+                tags=["nginx", f"location:{modifier}"],
+                raw_context=block[:200]
+            )
 
-        # Use create_endpoint from schema.py to build the record
-        endpoint = create_endpoint(
-          method="ANY",
-          path=path,
-          service_name=service_name,
-          source="nginx_config",
-          auth_detected=auth_detected,
-          auth_type=auth_type,
-          tags=["nginx"],
-          raw_context=block[:200]
-        )
+            # Fix 4: include server_name in ID to prevent collisions
+            endpoint.id = hashlib.md5(f"{server_name}:{path}".encode()).hexdigest()[:12]
 
-        results.append(endpoint)
+            results.append(endpoint)
 
     return results
 
@@ -72,23 +123,29 @@ def detect_auth(block_content):
     if 'proxy_set_header authorization' in block_lower:
         return True, "unknown"
 
-    # No auth keywords found
     return False, "none"
 
 
 def extract_service_name(block_content):
     """
     Pull the service name from a proxy_pass line.
-    e.g. "proxy_pass http://user-service:8000" → "user-service"
+    Handles two patterns:
+      Direct:   proxy_pass http://user-service:8000  -> "user-service"
+      Variable: set $upstream campaign:9000;          -> "campaign"
+                proxy_pass http://$upstream;
     """
-    match = re.search(
-        r'proxy_pass\s+https?://([^:/;\s]+)',
-        block_content
-    )
-    if match:
-        return match.group(1)
+    # Fix 5: handle "set $upstream host:port" pattern
+    upstream_match = re.search(r'set\s+\$upstream\s+([^:/;\s]+)', block_content)
+    if upstream_match:
+        return upstream_match.group(1)
+
+    # Original: direct proxy_pass URL
+    direct_match = re.search(r'proxy_pass\s+https?://([^:/;\s]+)', block_content)
+    if direct_match:
+        return direct_match.group(1)
 
     return "unknown"
+
 
 if __name__ == "__main__":
     import json
@@ -97,14 +154,12 @@ if __name__ == "__main__":
 
     print("Running Nginx parser test...\n")
 
-    # Point to your test config file
     test_file = "test_files/test_nginx.conf"
     endpoints = parse_nginx_config(test_file)
 
     print(f"Found {len(endpoints)} endpoints:\n")
 
     for ep in endpoints:
-        # Validate each one
         errors = validate_endpoint(ep)
         if errors:
             print(f"INVALID: {ep.path} — {errors}")
@@ -112,9 +167,9 @@ if __name__ == "__main__":
             print(f"OK: {ep.method} {ep.path}")
             print(f"   auth: {ep.auth_detected} ({ep.auth_type})")
             print(f"   service: {ep.service_name}")
+            print(f"   tags: {ep.tags}")
             print()
-    
-    # Save output to a file for Member 2
+
     from scanner.schema import save_endpoints
     save_endpoints(endpoints, "output/sample_nginx_endpoints.json")
     print("Saved to output/sample_nginx_endpoints.json")
