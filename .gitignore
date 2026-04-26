@@ -43,3 +43,7 @@ logs/
 data/*.json
 data/*.csv
 !data/.gitkeep
+
+# Backend generated scan data
+Avneet/backend/data/*.json
+!Avneet/backend/data/.gitkeep

@@ -224,6 +224,36 @@ const Dashboard = ({ onNewScan }: DashboardProps) => {
           })}
         </div>
 
+        {/* Critical API Kanban Overview */}
+        <div className="mb-6">
+          <div className="mb-3 text-sm font-medium text-foreground">Critical API Overview</div>
+          <div className="grid grid-cols-4 gap-3">
+            {(["zombie", "shadow", "rogue", "active"] as const).map((state) => {
+              const apis = inventory.filter((a) => a.state === state).sort((a, b) => b.importance_score - a.importance_score).slice(0, 5);
+              return (
+                <div key={state} className="rounded-xl border border-border bg-card p-3">
+                  <div className="mb-2 text-xs font-medium capitalize text-muted-foreground">{state}</div>
+                  <div className="space-y-2">
+                    {apis.map((api) => (
+                      <div
+                        key={api.id}
+                        onClick={() => setSelectedApi(api.id)}
+                        className="cursor-pointer rounded-lg border border-border bg-background p-2 hover:border-[#E24B4A]/40 transition"
+                      >
+                        <div className="text-[11px] font-mono text-foreground truncate">{api.path}</div>
+                        <div className="text-[10px] text-muted-foreground">{api.service_name}</div>
+                        <div className="mt-1 text-[10px] text-muted-foreground line-clamp-2">
+                          {api.ai_next_step || "No AI insight available"}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Section A: Table + Alerts */}
         <div className="flex gap-5 mb-6">
           <div className="w-[65%]">
@@ -266,6 +296,9 @@ const Dashboard = ({ onNewScan }: DashboardProps) => {
                         <td className="px-3 py-2">
                           <div className="font-mono text-foreground">{api.path}</div>
                           <div className="text-[10px] text-muted-foreground">{api.service_name}</div>
+                          <div className="mt-1 text-[10px] text-muted-foreground line-clamp-2">
+                            {api.ai_next_step || "No AI analysis available"}
+                          </div>
                         </td>
                         <td className="px-3 py-2"><StateBadge state={api.state} /></td>
                         <td className="px-3 py-2 text-right">
@@ -317,6 +350,11 @@ const Dashboard = ({ onNewScan }: DashboardProps) => {
                     <div key={api.id} className={`rounded-lg border border-border border-l-[3px] ${borderColor} bg-background p-3`}>
                       <div className="mb-0.5 font-mono text-[11px] text-foreground truncate">{api.path}</div>
                       <p className="text-[11px] text-muted-foreground">{getAlertDesc(api)}</p>
+                      {api.ai_next_step && (
+                        <p className="mt-1 text-[10px] text-[#E24B4A] line-clamp-2">
+                          {api.ai_next_step}
+                        </p>
+                      )}
                       <p className="mt-1 text-[10px] text-muted-foreground/60">{formatTimeAgo(api.last_seen)}</p>
                     </div>
                   );
@@ -353,9 +391,12 @@ const Dashboard = ({ onNewScan }: DashboardProps) => {
                         ))}
                       </div>
                       {item.api.ai_next_step && (
-                        <p className="mb-2 text-[10px] text-muted-foreground">
-                          {item.api.ai_next_step.length > 90 ? item.api.ai_next_step.slice(0, 90) + "…" : item.api.ai_next_step}
-                        </p>
+                        <div className="mb-2 rounded-md border border-[#E24B4A]/20 bg-[#E24B4A]/5 p-2">
+                          <div className="text-[9px] uppercase tracking-wide text-[#E24B4A] mb-1">AI Recommendation</div>
+                          <p className="text-[10px] text-foreground">
+                            {item.api.ai_next_step.length > 120 ? item.api.ai_next_step.slice(0, 120) + "…" : item.api.ai_next_step}
+                          </p>
+                        </div>
                       )}
                       {!approved && (
                         <div className="flex gap-2">
