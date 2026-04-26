@@ -26,9 +26,9 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 DATA_DIR = os.path.join(ROOT, "data")
 REPO_ROOT = os.path.abspath(os.path.join(ROOT, "..", ".."))
 
-M1_URL = os.environ.get("SPECTRE_M1_URL", "http://localhost:8001").rstrip("/")
-M2_URL = os.environ.get("SPECTRE_M2_URL", "http://localhost:8003").rstrip("/")
-M3_URL = os.environ.get("SPECTRE_M3_URL", "http://localhost:8002").rstrip("/")
+M1_URL = os.environ.get("SPECTRE_M1_URL", "http://scanner:8001").rstrip("/")
+M2_URL = os.environ.get("SPECTRE_M2_URL", "http://classifier:8003").rstrip("/")
+M3_URL = os.environ.get("SPECTRE_M3_URL", "http://agent:8002").rstrip("/")
 ALLOW_STUB_M3 = os.environ.get("SPECTRE_ALLOW_STUB_M3", "").strip().lower() in {"1", "true", "yes"}
 M1_FILE = os.environ.get("SPECTRE_M1_FILE", os.path.join(REPO_ROOT, "Neeraj", "output", "discovered_endpoints.json"))
 REQUIRE_M2 = os.environ.get("SPECTRE_REQUIRE_M2", "").strip().lower() in {"1", "true", "yes"}
@@ -147,7 +147,7 @@ def _load_m1_endpoints() -> list[dict] | None:
     return None
 
 
-def _to_m2_discovered_endpoint(ep: dict) -> dict | None:
+def _to_m2_discovered_endpoint(ep: dict, *, raw_context_as: str = "string") -> dict | None:
     path = ep.get("path") or ep.get("endpoint")
     if not path:
         return None
@@ -181,9 +181,13 @@ def _to_m2_discovered_endpoint(ep: dict) -> dict | None:
     path_conflict_raw = ep.get("path_conflict") or ep.get("also_found_in_conflict_with")
     path_conflict = True if (isinstance(path_conflict_raw, str) and path_conflict_raw.strip()) else None
 
-    # Gurleen/M2 currently expects `raw_context` as a dict.
+    # Gurleen/M2 schema drift: some versions expect `raw_context` as a string, some as a dict.
     raw_context_text = str(ep.get("raw_context") or "")
-    raw_context: dict = {"text": raw_context_text}
+    raw_context: Any
+    if raw_context_as == "dict":
+        raw_context = {"text": raw_context_text}
+    else:
+        raw_context = raw_context_text
 
     return {
         "id": str(endpoint_id),
@@ -221,7 +225,7 @@ def run() -> int:
         if not path:
             continue
 
-        m2_in = _to_m2_discovered_endpoint(ep)
+        m2_in = _to_m2_discovered_endpoint(ep, raw_context_as="string")
         if m2_in is not None:
             discovered_for_m2.append(m2_in)
 
@@ -255,7 +259,23 @@ def run() -> int:
     # Call M2 (classifier) if available: enrich state + technical_score before writing artifacts.
     if discovered_for_m2:
         try:
-            m2 = _http_json("POST", f"{M2_URL}/classify/batch", body=discovered_for_m2, timeout_s=M2_TIMEOUT_S)
+            try:
+                m2 = _http_json("POST", f"{M2_URL}/classify/batch", body=discovered_for_m2, timeout_s=M2_TIMEOUT_S)
+            except Exception as e:
+                # Retry once with alternate `raw_context` shape if schema drift caused a 422.
+                msg = str(e)
+                if "HTTP 422" in msg and "raw_context" in msg:
+                    alt = "dict" if "string_type" in msg else "string"
+                    discovered_for_m2 = []
+                    for ep in endpoints:
+                        if not isinstance(ep, dict):
+                            continue
+                        m2_in = _to_m2_discovered_endpoint(ep, raw_context_as=alt)
+                        if m2_in is not None:
+                            discovered_for_m2.append(m2_in)
+                    m2 = _http_json("POST", f"{M2_URL}/classify/batch", body=discovered_for_m2, timeout_s=M2_TIMEOUT_S)
+                else:
+                    raise
             if not isinstance(m2, list):
                 raise ValueError("M2 response is not a list")
 
@@ -265,13 +285,26 @@ def run() -> int:
                 for r in m2
                 if isinstance(r, dict) and r.get("endpoint_id")
             }
+            records_by_path: dict[str, list[dict]] = {}
+            for r in m2:
+                if not isinstance(r, dict):
+                    continue
+                path = r.get("path")
+                if isinstance(path, str) and path:
+                    records_by_path.setdefault(path, []).append(r)
 
             updated = 0
             for ep in scanner_output:
                 endpoint_id = ep.get("id")
-                if not endpoint_id:
-                    continue
-                r = records_by_id.get(str(endpoint_id))
+                r = records_by_id.get(str(endpoint_id)) if endpoint_id else None
+                if not isinstance(r, dict):
+                    ep_path = ep.get("endpoint") or ep.get("path")
+                    if isinstance(ep_path, str) and ep_path in records_by_path:
+                        candidates = records_by_path[ep_path]
+                        method = str(ep.get("method") or "").upper()
+                        exact = next((c for c in candidates if str(c.get("method") or "").upper() == method), None)
+                        any_m = next((c for c in candidates if str(c.get("method") or "").upper() == "ANY"), None)
+                        r = exact or any_m or (candidates[0] if candidates else None)
                 if not isinstance(r, dict):
                     continue
 

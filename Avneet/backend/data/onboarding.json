@@ -1,13 +1,7 @@
 {
-  "system_type": "other",
-  "data_handled": [
-    "customer_personal_data"
-  ],
-  "regulations": [
-    "soc2"
-  ],
-  "critical_service": "mmmmmmmmmmmmm",
-  "api_consumers": [
-    "third_party_vendors"
-  ]
+  "system_type": "",
+  "data_handled": [],
+  "regulations": [],
+  "critical_service": "",
+  "api_consumers": []
 }

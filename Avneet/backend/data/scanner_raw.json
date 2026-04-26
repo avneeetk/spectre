@@ -1,0 +1,304 @@
+{
+  "endpoints": [
+    {
+      "id": "3e3e15c7b8f8",
+      "method": "GET",
+      "path": "/items/",
+      "service_name": "items__main",
+      "sources": [
+        "code_repository"
+      ],
+      "in_repo": true,
+      "in_gateway": false,
+      "seen_in_traffic": false,
+      "auth_detected": false,
+      "auth_type": "none",
+      "status_codes": [],
+      "last_seen": null,
+      "tags": [
+        "python",
+        "fastapi"
+      ],
+      "raw_context": "File: /tmp/spectre_github_6ueyk9p9/pyfiles/items__main.py | Function: read_items",
+      "also_found_in_conflict_with": null,
+      "state": "unknown",
+      "owasp_flags": [],
+      "risk_reason": ""
+    },
+    {
+      "id": "008352ec82f8",
+      "method": "POST",
+      "path": "/items/",
+      "service_name": "items__main",
+      "sources": [
+        "code_repository"
+      ],
+      "in_repo": true,
+      "in_gateway": false,
+      "seen_in_traffic": false,
+      "auth_detected": false,
+      "auth_type": "none",
+      "status_codes": [],
+      "last_seen": null,
+      "tags": [
+        "python",
+        "fastapi"
+      ],
+      "raw_context": "File: /tmp/spectre_github_6ueyk9p9/pyfiles/items__main.py | Function: create_item",
+      "also_found_in_conflict_with": null,
+      "state": "unknown",
+      "owasp_flags": [],
+      "risk_reason": ""
+    },
+    {
+      "id": "7ac7fd17c755",
+      "method": "PUT",
+      "path": "/items/{item_id}/",
+      "service_name": "items__main",
+      "sources": [
+        "code_repository"
+      ],
+      "in_repo": true,
+      "in_gateway": false,
+      "seen_in_traffic": false,
+      "auth_detected": false,
+      "auth_type": "none",
+      "status_codes": [],
+      "last_seen": null,
+      "tags": [
+        "python",
+        "fastapi"
+      ],
+      "raw_context": "File: /tmp/spectre_github_6ueyk9p9/pyfiles/items__main.py | Function: update_item",
+      "also_found_in_conflict_with": null,
+      "state": "unknown",
+      "owasp_flags": [],
+      "risk_reason": ""
+    },
+    {
+      "id": "cfeab0d6a890",
+      "method": "DELETE",
+      "path": "/items/{item_id}",
+      "service_name": "items__main",
+      "sources": [
+        "code_repository"
+      ],
+      "in_repo": true,
+      "in_gateway": false,
+      "seen_in_traffic": false,
+      "auth_detected": false,
+      "auth_type": "none",
+      "status_codes": [],
+      "last_seen": null,
+      "tags": [
+        "python",
+        "fastapi"
+      ],
+      "raw_context": "File: /tmp/spectre_github_6ueyk9p9/pyfiles/items__main.py | Function: delete_item",
+      "also_found_in_conflict_with": null,
+      "state": "unknown",
+      "owasp_flags": [],
+      "risk_reason": ""
+    },
+    {
+      "id": "ad80cab659a5",
+      "method": "GET",
+      "path": "/shops/",
+      "service_name": "shops__main",
+      "sources": [
+        "code_repository"
+      ],
+      "in_repo": true,
+      "in_gateway": false,
+      "seen_in_traffic": false,
+      "auth_detected": false,
+      "auth_type": "none",
+      "status_codes": [],
+      "last_seen": null,
+      "tags": [
+        "python",
+        "fastapi"
+      ],
+      "raw_context": "File: /tmp/spectre_github_6ueyk9p9/pyfiles/shops__main.py | Function: read_shops",
+      "also_found_in_conflict_with": null,
+      "state": "unknown",
+      "owasp_flags": [],
+      "risk_reason": ""
+    },
+    {
+      "id": "004c6e0da3e6",
+      "method": "POST",
+      "path": "/shops/",
+      "service_name": "shops__main",
+      "sources": [
+        "code_repository"
+      ],
+      "in_repo": true,
+      "in_gateway": false,
+      "seen_in_traffic": false,
+      "auth_detected": false,
+      "auth_type": "none",
+      "status_codes": [],
+      "last_seen": null,
+      "tags": [
+        "python",
+        "fastapi"
+      ],
+      "raw_context": "File: /tmp/spectre_github_6ueyk9p9/pyfiles/shops__main.py | Function: create_shop",
+      "also_found_in_conflict_with": null,
+      "state": "unknown",
+      "owasp_flags": [],
+      "risk_reason": ""
+    },
+    {
+      "id": "7ba4b82efedc",
+      "method": "PUT",
+      "path": "/shops/{shop_id}/",
+      "service_name": "shops__main",
+      "sources": [
+        "code_repository"
+      ],
+      "in_repo": true,
+      "in_gateway": false,
+      "seen_in_traffic": false,
+      "auth_detected": false,
+      "auth_type": "none",
+      "status_codes": [],
+      "last_seen": null,
+      "tags": [
+        "python",
+        "fastapi"
+      ],
+      "raw_context": "File: /tmp/spectre_github_6ueyk9p9/pyfiles/shops__main.py | Function: update_shop",
+      "also_found_in_conflict_with": null,
+      "state": "unknown",
+      "owasp_flags": [],
+      "risk_reason": ""
+    },
+    {
+      "id": "bad33f57087c",
+      "method": "DELETE",
+      "path": "/shops/{shop_id}",
+      "service_name": "shops__main",
+      "sources": [
+        "code_repository"
+      ],
+      "in_repo": true,
+      "in_gateway": false,
+      "seen_in_traffic": false,
+      "auth_detected": false,
+      "auth_type": "none",
+      "status_codes": [],
+      "last_seen": null,
+      "tags": [
+        "python",
+        "fastapi"
+      ],
+      "raw_context": "File: /tmp/spectre_github_6ueyk9p9/pyfiles/shops__main.py | Function: delete_shop",
+      "also_found_in_conflict_with": null,
+      "state": "unknown",
+      "owasp_flags": [],
+      "risk_reason": ""
+    },
+    {
+      "id": "7b7cae409ae9",
+      "method": "GET",
+      "path": "/users/",
+      "service_name": "users__main",
+      "sources": [
+        "code_repository"
+      ],
+      "in_repo": true,
+      "in_gateway": false,
+      "seen_in_traffic": false,
+      "auth_detected": false,
+      "auth_type": "none",
+      "status_codes": [],
+      "last_seen": null,
+      "tags": [
+        "python",
+        "fastapi"
+      ],
+      "raw_context": "File: /tmp/spectre_github_6ueyk9p9/pyfiles/users__main.py | Function: read_users",
+      "also_found_in_conflict_with": null,
+      "state": "unknown",
+      "owasp_flags": [],
+      "risk_reason": ""
+    },
+    {
+      "id": "34395a5351a0",
+      "method": "POST",
+      "path": "/users/",
+      "service_name": "users__main",
+      "sources": [
+        "code_repository"
+      ],
+      "in_repo": true,
+      "in_gateway": false,
+      "seen_in_traffic": false,
+      "auth_detected": false,
+      "auth_type": "none",
+      "status_codes": [],
+      "last_seen": null,
+      "tags": [
+        "python",
+        "fastapi"
+      ],
+      "raw_context": "File: /tmp/spectre_github_6ueyk9p9/pyfiles/users__main.py | Function: create_user",
+      "also_found_in_conflict_with": null,
+      "state": "unknown",
+      "owasp_flags": [],
+      "risk_reason": ""
+    },
+    {
+      "id": "4655fb9df433",
+      "method": "PUT",
+      "path": "/users/{user_id}/",
+      "service_name": "users__main",
+      "sources": [
+        "code_repository"
+      ],
+      "in_repo": true,
+      "in_gateway": false,
+      "seen_in_traffic": false,
+      "auth_detected": false,
+      "auth_type": "none",
+      "status_codes": [],
+      "last_seen": null,
+      "tags": [
+        "python",
+        "fastapi"
+      ],
+      "raw_context": "File: /tmp/spectre_github_6ueyk9p9/pyfiles/users__main.py | Function: update_user",
+      "also_found_in_conflict_with": null,
+      "state": "unknown",
+      "owasp_flags": [],
+      "risk_reason": ""
+    },
+    {
+      "id": "d2fcf0f92b98",
+      "method": "DELETE",
+      "path": "/users/{user_id}",
+      "service_name": "users__main",
+      "sources": [
+        "code_repository"
+      ],
+      "in_repo": true,
+      "in_gateway": false,
+      "seen_in_traffic": false,
+      "auth_detected": false,
+      "auth_type": "none",
+      "status_codes": [],
+      "last_seen": null,
+      "tags": [
+        "python",
+        "fastapi"
+      ],
+      "raw_context": "File: /tmp/spectre_github_6ueyk9p9/pyfiles/users__main.py | Function: delete_user",
+      "also_found_in_conflict_with": null,
+      "state": "unknown",
+      "owasp_flags": [],
+      "risk_reason": ""
+    }
+  ]
+}

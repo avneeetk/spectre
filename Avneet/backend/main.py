@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from routers import onboarding, inventory, queue, graph
+from routers import onboarding, inventory, queue, graph, scan
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
@@ -16,12 +16,16 @@ app.include_router(onboarding.router)
 app.include_router(inventory.router)
 app.include_router(queue.router)
 app.include_router(graph.router)
+app.include_router(scan.router)
 
 HEALTH_CHECK_ENDPOINTS = [
     "/api/inventory",
+    "/api/inventory/refresh",
     "/api/queue",
     "/api/onboarding",
     "/api/graph",
+    "/api/scan/trigger",
+    "/api/scan/health/services",
 ]
 
 

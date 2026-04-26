@@ -7,6 +7,7 @@ Exposes the scanner over HTTP so the dashboard can call it.
 Endpoints:
   GET  /ping            → wake-up check, returns {"status": "ok"}
   POST /scan/sample     → runs real parsers on bundled test files
+  POST /scan/github     → scans a public GitHub repo URL (non-interactive)
   POST /scan/upload     → runs real parsers on user-uploaded files
 
 Note on classification:
@@ -15,12 +16,13 @@ Note on classification:
   and risk_reason.
 """
 
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from dataclasses import asdict
 from pathlib import Path
 from typing import Optional
+from pydantic import BaseModel
 import tempfile
 import shutil
 import json
@@ -35,6 +37,7 @@ from scanner.parsers.nginx_parser import parse_nginx_config
 from scanner.parsers.kong_parser import parse_kong_config
 from scanner.parsers.ast_parser import parse_python_routes
 from scanner.schema import merge_endpoint
+from scanner.resolvers.github_resolver import resolve_github_repo_api
 
 app = FastAPI(
     title="SPECTRE Discovery Engine",
@@ -185,6 +188,92 @@ def scan_sample():
         response["warnings"] = errors
 
     return JSONResponse(response)
+
+
+# ─────────────────────────────────────────────
+# POST /scan/github — scan a public GitHub repo (non-interactive)
+# ─────────────────────────────────────────────
+
+class ScanGithubRequest(BaseModel):
+    repo_url: str
+    github_token: Optional[str] = None
+    auto_confirm: bool = True
+    max_total_files: int = 20
+    max_per_type: int = 8
+
+
+@app.post("/scan/github")
+def scan_github(req: ScanGithubRequest):
+    """
+    Scan a public GitHub repo URL without any interactive prompts.
+    This uses the same GitHub resolver logic as the CLI, but auto-selects files.
+
+    Important:
+      - No fallback to sample files (otherwise results get "contaminated").
+      - Traffic logs are not available from GitHub scanning.
+    """
+    config = resolve_github_repo_api(
+        req.repo_url,
+        github_token=req.github_token,
+        auto_confirm=req.auto_confirm,
+        max_total_files=req.max_total_files,
+        max_per_type=req.max_per_type,
+    )
+
+    if config is None:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "Repo scan found no scannable files or downloads failed. "
+                "Currently supported discovery inputs are: Nginx proxy_pass (*.conf), "
+                "Kong gateway (_format_version in *.yml/*.yaml), and Python route files "
+                "(@app.get/@app.post/@router.get)."
+            ),
+        )
+
+    tmpdir = config.get("tmpdir")
+    if not tmpdir:
+        raise HTTPException(status_code=500, detail="GitHub resolver returned no tmpdir")
+
+    all_endpoints: dict = {}
+    errors: list[str] = []
+
+    try:
+        for path in config.get("nginx_configs", []) or []:
+            try:
+                eps = parse_nginx_config(str(path))
+                merge_into(all_endpoints, eps, "nginx_config")
+            except Exception as e:
+                errors.append(f"Nginx parser ({path}): {str(e)}")
+
+        for path in config.get("kong_configs", []) or []:
+            try:
+                eps = parse_kong_config(str(path))
+                merge_into(all_endpoints, eps, "kong_gateway")
+            except Exception as e:
+                errors.append(f"Kong parser ({path}): {str(e)}")
+
+        for repo_dir in config.get("python_repos", []) or []:
+            try:
+                eps = parse_python_routes(str(repo_dir))
+                merge_into(all_endpoints, eps, "code_repository")
+            except Exception as e:
+                errors.append(f"AST parser ({repo_dir}): {str(e)}")
+
+        response = build_response(all_endpoints, traffic_eps=None)
+        response["traffic_source"] = None
+        response["repo_url"] = req.repo_url
+        response["repo_files"] = {
+            "nginx_configs": config.get("nginx_configs", []),
+            "kong_configs": config.get("kong_configs", []),
+            "python_repos": config.get("python_repos", []),
+        }
+        if errors:
+            response["warnings"] = errors
+
+        return JSONResponse(response)
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
 
 
 # ─────────────────────────────────────────────

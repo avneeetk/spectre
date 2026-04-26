@@ -386,7 +386,6 @@ def _enrich_for_ui(canonical: dict, ui_seed: dict, onboarding: dict, agent: dict
             "technical_score": technical_score,
             "importance_score": int(canonical.get("importance_score") or 0),
 
-            # UI fields (Lovable schema)
             "id": api_id,
             "path": endpoint,
             "state": state,
