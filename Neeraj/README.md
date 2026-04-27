@@ -75,9 +75,9 @@ When you run the scanner, it asks:
 Do you want to scan a public GitHub repo? [Y/N]:
 ```
 
-**If N** — scans the local test files in `test_files/` exactly as before.
+**If N** : scans the local test files in `test_files/` exactly as before.
 
-**If Y** — opens the GitHub repo scanner. Paste any public repo URL and the scanner searches it for nginx configs, Kong configs, and Python route files. It shows you every file it finds and asks for confirmation before downloading anything. Only confirmed files get scanned.
+**If Y** : opens the GitHub repo scanner. Paste any public repo URL and the scanner searches it for nginx configs, Kong configs, and Python route files. It shows you every file it finds and asks for confirmation before downloading anything. Only confirmed files get scanned.
 
 ### Step 2 : Each parser scans its source
 
@@ -165,7 +165,7 @@ To scan real public GitHub repos, generate a free Personal Access Token:
 GITHUB_TOKEN=ghp_yourtoken
 ```
 
-The `.env` file is already in `.gitignore` — it will never be committed. Without a token the scanner still works but is limited to 10 search API calls per hour (enough for roughly 1 repo scan). With a token that limit rises to 30 calls per minute.
+The `.env` file is already in `.gitignore` - it will never be committed. Without a token the scanner still works but is limited to 10 search API calls per hour (enough for roughly 1 repo scan). With a token that limit rises to 10 calls per minute.
 
 ---
 
@@ -201,28 +201,24 @@ Enter public GitHub repo URL: https://github.com/owner/repo
   ✓ Repo found
 
 [github] Searching owner/repo for API-related files...
-  Searching for Nginx config files...
+  Searching for Nginx config (nginx.conf) files...
     → 1 result(s)
-  Searching for Kong config (.yml) files...
+  Searching for Nginx config (default.conf) files...
     → 0 result(s)
-  Searching for Kong config (.yaml) files...
+  Searching for Kong config (yaml) files...
     → 0 result(s)
-  Searching for Kong config (filename .yaml) files...
+  Searching for Kong config (yml) files...
     → 0 result(s)
-  Searching for Kong config (filename .yml) files...
-    → 0 result(s)
-  Searching for Python routes (app.get)...
+  Searching for Python routes (app) files...
     → 3 result(s)
-  Searching for Python routes (app.post)...
-    → 2 result(s)
-  Searching for Python routes (router)...
+  Searching for Python routes (router) files...
     → 0 result(s)
 
 [github] Found 2 candidate file(s):
 
-  Scan nginx/nginx.conf (Nginx config)? [Y/N]: Y
+  Scan nginx/nginx.conf (Nginx config (nginx.conf))? [Y/N]: Y
   ✓ Added
-  Scan services/api/routes.py (Python routes (get))? [Y/N]: Y
+  Scan services/api/routes.py (Python routes (app))? [Y/N]: Y
   ✓ Added
 
 [github] Downloading 2 confirmed file(s)...
@@ -235,7 +231,7 @@ Enter public GitHub repo URL: https://github.com/owner/repo
   Traffic log   : not available from repo (skipped)
 ```
 
-The scanner runs 8 search queries per scan (nginx, kong × 4, python × 3). Multiple Kong queries are needed because Kong config files can use either `.yml` or `.yaml` extensions and may be named explicitly `kong.yaml` or `kong.yml`. Deduplication ensures a file matched by more than one query is only shown once in the confirmation list.
+The scanner runs 6 search queries per scan: 2 for nginx (by filename), 2 for Kong (`.yaml` and `.yml`), and 2 for Python (app routes and router routes). Keeping to 6 ensures the scan stays within GitHub's rate limit of 9 search requests per minute. Deduplication ensures a file matched by more than one query is only shown once in the confirmation list.
 
 If no matching files are found or you exit early, you are offered the option to fall back to local test files instead. If you enter an invalid URL or an inaccessible repo, the scanner tells you what went wrong and lets you try again — it never silently falls back.
 
@@ -274,7 +270,7 @@ curl.exe --proxy http://localhost:8080 http://localhost:8000/api/v1/users
 curl.exe --proxy http://localhost:8080 http://localhost:8000/api/v2/internal/users
 ```
 
-Watch Terminal 2 — you will see:
+Watch Terminal 2 : you will see:
 ```
 [traffic] NEW endpoint: GET /api/v1/users
 [traffic] NEW endpoint: GET /api/v2/internal/users
@@ -306,7 +302,7 @@ Expected output:
 
 ### Nginx parser
 
-Handles all four location modifier types (`~`, `~*`, `=`, `^~`) and one level of nested braces. Extracts `server_name` from each server block and uses it to generate unique endpoint IDs — so if three different virtual hosts all have a `/` location, they produce three separate records instead of one. Also resolves service names from the `set $upstream host:port` pattern commonly used in Docker-based nginx setups, in addition to direct `proxy_pass` URLs.
+Handles all four location modifier types (`~`, `~*`, `=`, `^~`) and one level of nested braces. Extracts `server_name` from each server block and uses it to generate unique endpoint IDs - so if three different virtual hosts all have a `/` location, they produce three separate records instead of one. Also resolves service names from the `set $upstream host:port` pattern commonly used in Docker-based nginx setups, in addition to direct `proxy_pass` URLs.
 
 The `tags` field includes the modifier type for each location, e.g. `["nginx", "location:~"]`.
 
