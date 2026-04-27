@@ -146,44 +146,34 @@ def _get_file_content(owner, repo, path):
 # file_type is used to route files to the right parser later
 FILE_SEARCHES = [
     (
-        "Nginx config",
-        "proxy_pass path:.conf",
-        "nginx",
+        "Nginx config (nginx.conf)",           
+        "proxy_pass filename:nginx.conf",   
+        "nginx"
     ),
     (
-        "Kong config (.yml)",
-        "_format_version path:.yml",
-        "kong",
+        "Nginx config (default.conf)",           
+        "proxy_pass filename:default.conf",  
+        "nginx"
     ),
     (
-        "Kong config (.yaml)",
-        "_format_version path:.yaml",
-        "kong",
+        "Kong config (yaml)",            
+        "_format_version filename:kong.yaml", 
+        "kong"
     ),
     (
-        "Kong config (filename .yaml)",        # ← catches nested kong.yaml/yml
-        "_format_version filename:kong.yaml",
-        "kong",
+        "Kong config (yml)",            
+        "_format_version filename:kong.yml",  
+        "kong"
     ),
     (
-        "Kong config (filename .yml)",
-        "_format_version filename:kong.yml",
-        "kong",
+        "Python routes (app)",    
+        "@app.get language:python",          
+        "python"
     ),
     (
-        "Python routes (app.get)",
-        "@app.get language:python",
-        "python",
-    ),
-    (
-        "Python routes (app.post)",
-        "@app.post language:python",
-        "python",
-    ),
-    (
-        "Python routes (router)",
-        "@router.get language:python",
-        "python",
+        "Python routes (router)", 
+        "@router.get language:python",       
+        "python"
     ),
 ]
 
