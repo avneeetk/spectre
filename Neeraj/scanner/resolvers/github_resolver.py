@@ -403,3 +403,79 @@ def resolve_github_repo():
     print(f"  Traffic log   : not available from repo (skipped)")
 
     return config
+
+# ---------------------------------------------------------------------------
+# Non-interactive entry point : used by backend/main.py for API ingestion
+# ---------------------------------------------------------------------------
+
+def resolve_github_repo_api(
+    repo_url: str,
+    *,
+    github_token: str | None = None,
+    auto_confirm: bool = True,
+    max_total_files: int = 20,
+    max_per_type: int = 8,
+):
+    """
+    Non-interactive GitHub repo scanning helper for service/API usage.
+
+    Differences vs resolve_github_repo():
+      - No input() prompts (safe to call from FastAPI).
+      - Auto-selects candidate files (bounded by max_* limits).
+
+    Returns:
+      dict -- config shaped like SCAN_CONFIG (includes tmpdir)
+      None -- repo not found / no candidates / all downloads failed
+    """
+    if not repo_url or not isinstance(repo_url, str):
+        return None
+
+    try:
+        owner, repo = _parse_repo_url(repo_url)
+    except ValueError:
+        return None
+
+    if not _check_repo_exists(owner, repo, github_token):
+        return None
+
+    # Temporarily use token override for this API call path.
+    # Interactive CLI still uses env-based token as before.
+    candidates = _discover_files(owner, repo, github_token)
+    if not candidates:
+        return None
+
+    # Auto-confirm bounded set of files.
+    if not auto_confirm:
+        # Service mode currently supports only auto-confirm; explicit selection
+        # can be implemented later (e.g., client sends confirmed paths).
+        return None
+
+    selected = []
+    per_type_counts = {}
+    for c in candidates:
+        t = c.get("file_type")
+        if not t:
+            continue
+        if per_type_counts.get(t, 0) >= max_per_type:
+            continue
+        selected.append(c)
+        per_type_counts[t] = per_type_counts.get(t, 0) + 1
+        if len(selected) >= max_total_files:
+            break
+
+    if not selected:
+        return None
+
+    tmpdir = tempfile.mkdtemp(prefix="spectre_github_")
+    config = _download_files(owner, repo, selected, tmpdir, github_token)
+
+    total = (
+        len(config.get("nginx_configs", []))
+        + len(config.get("kong_configs", []))
+        + len(config.get("python_repos", []))
+    )
+
+    if total == 0:
+        return None
+
+    return config
