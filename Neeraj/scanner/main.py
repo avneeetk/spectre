@@ -71,7 +71,7 @@ def run_scanner(config):
     print("\n[scanner] Running Nginx parser...")
     for filepath in config.get("nginx_configs", []):
         if not Path(filepath).exists():
-            print(f"  Skipping {filepath} — file not found")
+            print(f"  Skipping {filepath} - file not found")
             continue
         endpoints = parse_nginx_config(filepath)
         count = merge_into(all_endpoints, endpoints, "nginx_config")
@@ -83,7 +83,7 @@ def run_scanner(config):
     print("\n[scanner] Running Kong parser...")
     for filepath in config.get("kong_configs", []):
         if not Path(filepath).exists():
-            print(f"  Skipping {filepath} — file not found")
+            print(f"  Skipping {filepath} - file not found")
             continue
         endpoints = parse_kong_config(filepath)
         count = merge_into(all_endpoints, endpoints, "kong_gateway")
@@ -95,7 +95,7 @@ def run_scanner(config):
     print("\n[scanner] Running AST parser...")
     for dirpath in config.get("python_repos", []):
         if not Path(dirpath).exists():
-            print(f"  Skipping {dirpath} — directory not found")
+            print(f"  Skipping {dirpath} - directory not found")
             continue
         endpoints = parse_python_routes(dirpath)
         count = merge_into(all_endpoints, endpoints, "code_repository")
@@ -114,7 +114,7 @@ def run_scanner(config):
         count = merge_into(all_endpoints, traffic_endpoints, "network_traffic")
         print(f"  traffic_log.json → {len(traffic_endpoints)} observed, {count} new")
     else:
-        print("  No traffic log found — skipping")
+        print("  No traffic log found - skipping")
 
     # ------------------------------------------------------------------
     # 5. Validate and save
@@ -132,7 +132,6 @@ def run_scanner(config):
     save_endpoints(final_list, OUTPUT_FILE)
 
     print(f"\n[scanner] Done. Output saved to {OUTPUT_FILE}")
-    print("[scanner] Share this file with Member 2 and Member 4.\n")
 
     return final_list
 
@@ -153,7 +152,7 @@ def merge_into(existing_dict, new_endpoints, source):
             existing_dict[ep.id] = ep
             new_count += 1
         else:
-            # Already seen from another source — merge
+            # Already seen from another source - merge
             merge_endpoint(existing_dict[ep.id], source)
 
     return new_count
@@ -167,7 +166,7 @@ if __name__ == "__main__":
     import shutil
 
     print("=" * 50)
-    print("  SPECTRE — API Discovery Scanner")
+    print("  SPECTRE : API Discovery Scanner")
     print("=" * 50)
 
     # ------------------------------------------------------------------

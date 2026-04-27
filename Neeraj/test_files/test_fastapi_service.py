@@ -35,5 +35,3 @@ def debug():
 @app.get("/health")
 def health():
     return {"status": "ok"}
-
-
