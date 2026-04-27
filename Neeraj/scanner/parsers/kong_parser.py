@@ -5,51 +5,65 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 from scanner.schema import create_endpoint, validate_endpoint
 
+
 def parse_kong_config(filepath):
     """
     Read a Kong declarative config YAML file.
     Returns a list of APIEndpoint objects.
+
+    Fixes applied:
+      1. _format_version guard : rejects non-Kong YAMLs (e.g. docker-compose)
+         before trying to parse them, preventing false positives on real repos
+      2. Global plugins handled : top-level plugins list is now checked and
+         applied to all routes, same as service/route-level auth inheritance
     """
     with open(filepath, "r", encoding="utf-8") as f:
         config = yaml.safe_load(f)
 
+    # Fix 1: guard against non-Kong YAML files
+    # Kong declarative configs always have _format_version at the top level.
+    # Without this, docker-compose.yml and other YAMLs with a "services" key
+    # would be silently parsed and produce garbage endpoints.
+    if not isinstance(config, dict):
+        return []
+    if "_format_version" not in config:
+        return []
+
     results = []
 
-    # Kong config has a top-level "services" list
+    # Fix 2: check global plugins, these apply to every route in the file
+    global_plugins = [p["name"] for p in config.get("plugins", [])]
+    global_has_auth, global_auth_type = detect_auth_from_plugins(global_plugins)
+
     services = config.get("services", [])
 
     for service in services:
         service_name = service.get("name", "unknown")
 
-        # Check for auth plugins at the SERVICE level
-        # If the service has jwt/oauth2/key-auth, ALL its routes inherit it
+        # Service-level plugins apply to all routes under this service
         service_plugins = [p["name"] for p in service.get("plugins", [])]
         service_has_auth, service_auth_type = detect_auth_from_plugins(service_plugins)
 
-        # Now go through each route in this service
         routes = service.get("routes", [])
 
         for route in routes:
             paths = route.get("paths", ["/unknown"])
             methods = route.get("methods", ["ANY"])
 
-            # Check for auth plugins at the ROUTE level too
+            # Route-level plugins are most specific
             route_plugins = [p["name"] for p in route.get("plugins", [])]
             route_has_auth, route_auth_type = detect_auth_from_plugins(route_plugins)
 
-            # Route-level auth overrides service-level
+            # Priority: route > service > global
             if route_has_auth:
-                auth_detected = True
-                auth_type = route_auth_type
+                auth_detected, auth_type = True, route_auth_type
             elif service_has_auth:
-                auth_detected = True
-                auth_type = service_auth_type
+                auth_detected, auth_type = True, service_auth_type
+            elif global_has_auth:
+                auth_detected, auth_type = True, global_auth_type
             else:
-                auth_detected = False
-                auth_type = "none"
+                auth_detected, auth_type = False, "none"
 
-            # A route can have multiple paths and methods
-            # Create one endpoint record per path+method combination
             for path in paths:
                 for method in methods:
                     endpoint = create_endpoint(
@@ -65,6 +79,7 @@ def parse_kong_config(filepath):
                     results.append(endpoint)
 
     return results
+
 
 def detect_auth_from_plugins(plugin_names):
     """
@@ -87,6 +102,7 @@ def detect_auth_from_plugins(plugin_names):
             return True, "oauth2"
 
     return False, "none"
+
 
 if __name__ == "__main__":
     from dataclasses import asdict

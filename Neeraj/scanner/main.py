@@ -1,5 +1,5 @@
 """
-main.py — SPECTRE Scanner Entry Point
+main.py : SPECTRE Scanner Entry Point
 
 Runs all parsers and combines their output into one file:
     output/discovered_endpoints.json
@@ -28,10 +28,11 @@ from scanner.schema import (
 from scanner.parsers.nginx_parser import parse_nginx_config
 from scanner.parsers.ast_parser import parse_python_routes
 from scanner.parsers.kong_parser import parse_kong_config
+from scanner.resolvers.github_resolver import resolve_github_repo
 
 
 # ---------------------------------------------------------------------------
-# Config — tell the scanner where to look
+# Config : tells the scanner where to look
 # Change these paths to point at real services when Member 4 has Docker ready
 # ---------------------------------------------------------------------------
 
@@ -163,12 +164,65 @@ def merge_into(existing_dict, new_endpoints, source):
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
+    import shutil
+
     print("=" * 50)
     print("  SPECTRE — API Discovery Scanner")
     print("=" * 50)
 
-    results = run_scanner(SCAN_CONFIG)
+    # ------------------------------------------------------------------
+    # Ask whether to scan a GitHub repo or use local files
+    # ------------------------------------------------------------------
+    github_tmpdir = None
 
+    while True:
+        answer = input("\nDo you want to scan a public GitHub repo? [Y/N]: ").strip().lower()
+        if answer in ("y", "yes"):
+            use_github = True
+            break
+        elif answer in ("n", "no"):
+            use_github = False
+            break
+        else:
+            print("Please enter Y or N")
+
+    if use_github:
+        github_config = resolve_github_repo()
+
+        if github_config is None:
+            # User exited the GitHub flow (typed exit, no files confirmed,
+            # or repo had no matching files). Ask whether to run locally instead.
+            print()
+            while True:
+                fallback = input("Run on local test files instead? [Y/N]: ").strip().lower()
+                if fallback in ("y", "yes"):
+                    config = SCAN_CONFIG
+                    break
+                elif fallback in ("n", "no"):
+                    print("[scanner] Exiting.")
+                    sys.exit(0)
+                else:
+                    print("Please enter Y or N")
+        else:
+            github_tmpdir = github_config.pop("tmpdir")  # hold for cleanup
+            config = github_config
+    else:
+        config = SCAN_CONFIG
+
+    # ------------------------------------------------------------------
+    # Run the scanner with whichever config was chosen
+    # ------------------------------------------------------------------
+    results = run_scanner(config)
+
+    # ------------------------------------------------------------------
+    # Clean up temp files if we downloaded from GitHub
+    # ------------------------------------------------------------------
+    if github_tmpdir:
+        shutil.rmtree(github_tmpdir, ignore_errors=True)
+
+    # ------------------------------------------------------------------
+    # Summary
+    # ------------------------------------------------------------------
     print("\n[scanner] Summary by source:")
     source_counts = {}
     for ep in results:
@@ -182,6 +236,6 @@ if __name__ == "__main__":
     for ep in results:
         if ep.seen_in_traffic and not ep.in_gateway and not ep.in_repo:
             shadow_count += 1
-            print(f"  !! {ep.method} {ep.path} — in traffic only, not in any config or repo")
+            print(f"  !! {ep.method} {ep.path} - in traffic only, not in any config or repo")
     if shadow_count == 0:
         print("  None detected")

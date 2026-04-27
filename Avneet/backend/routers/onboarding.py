@@ -4,9 +4,9 @@ from services.data_loader import load_json, save_json
 router = APIRouter()
 
 def validate_onboarding(data):
-    required = ["system_type", "regulations", "api_consumers"]
+    required = ["system_type", "regulations", "api_consumers", "critical_service"]
     for key in required:
-        if key not in data:
+        if key not in data or not data.get(key):
             raise ValueError(f"Missing {key}")
     return True
 

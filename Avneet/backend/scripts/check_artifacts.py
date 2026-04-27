@@ -45,18 +45,34 @@ def main() -> int:
     print(f"[check] ERROR: {agent_path} missing or not a list", file=sys.stderr)
     return 2
 
-  scanner_eps = [e.get("endpoint") for e in scanner if isinstance(e, dict)]
-  agent_eps = [e.get("endpoint") for e in agent if isinstance(e, dict)]
+  # Create method+endpoint keys for proper validation
+  scanner_keys = set()
+  agent_keys = set()
+  
+  for e in scanner:
+    if isinstance(e, dict):
+      method = e.get("method", "")
+      endpoint = e.get("endpoint", "")
+      if method and endpoint:
+        scanner_keys.add(f"{method}:{endpoint}")
+  
+  for e in agent:
+    if isinstance(e, dict):
+      # Try id first, then method+endpoint
+      if e.get("id"):
+        agent_keys.add(e["id"])
+      else:
+        method = e.get("method", "")
+        endpoint = e.get("endpoint", "")
+        if method and endpoint:
+          agent_keys.add(f"{method}:{endpoint}")
 
-  scanner_set = {e for e in scanner_eps if isinstance(e, str) and e}
-  agent_set = {e for e in agent_eps if isinstance(e, str) and e}
+  missing_agent = sorted(scanner_keys - agent_keys)
+  missing_scanner = sorted(agent_keys - scanner_keys)
 
-  missing_agent = sorted(scanner_set - agent_set)
-  missing_scanner = sorted(agent_set - scanner_set)
-
-  print(f"[check] scanner endpoints: {len(scanner_set)}")
-  print(f"[check] agent endpoints:   {len(agent_set)}")
-  print(f"[check] join coverage:     {len(scanner_set & agent_set)}/{len(scanner_set)}")
+  print(f"[check] scanner endpoints: {len(scanner_keys)}")
+  print(f"[check] agent endpoints:   {len(agent_keys)}")
+  print(f"[check] join coverage:     {len(scanner_keys & agent_keys)}/{len(scanner_keys)}")
 
   if missing_agent:
     print(f"[check] WARN: missing agent_results for {len(missing_agent)} endpoints (showing up to 10):")
@@ -74,9 +90,13 @@ def main() -> int:
     if isinstance(e, dict) and any(k not in e for k in required_scanner)
   ]
   required_agent = {"endpoint", "risk_summary", "recommended_action", "technical_fix"}
+  # Also check for id or method in agent results
   bad_agent = [
     e for e in agent
-    if isinstance(e, dict) and any(k not in e for k in required_agent)
+    if isinstance(e, dict) and (
+      any(k not in e for k in required_agent) or
+      (not e.get("id") and not e.get("method"))
+    )
   ]
 
   if bad_scanner:
