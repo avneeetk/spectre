@@ -10,10 +10,11 @@ from services.data_loader import get_merged_inventory, load_json, save_json
 router = APIRouter()
 
 
-def _is_queue_state(state: str | None) -> bool:
-    if not state:
-        return False
-    return state.strip().lower() in {"zombie", "rogue"}
+QUEUE_IMPORTANCE_THRESHOLD = 70
+
+
+def _is_queue_candidate(endpoint: dict) -> bool:
+    return int(endpoint.get("importance_score") or 0) >= QUEUE_IMPORTANCE_THRESHOLD
 
 
 def _load_actions() -> dict:
@@ -24,8 +25,8 @@ def _load_actions() -> dict:
 @router.get("/api/queue")
 def get_queue() -> list[dict]:
     actions = _load_actions()
-    inventory = [ep for ep in get_merged_inventory() if _is_queue_state(ep.get("state"))]
-    inventory.sort(key=lambda ep: ep.get("importance_score") or 0, reverse=True)
+    inventory = [ep for ep in get_merged_inventory() if _is_queue_candidate(ep)]
+    inventory.sort(key=lambda ep: ep.get("priority_score") or ep.get("importance_score") or 0, reverse=True)
 
     for ep in inventory:
         api_id = ep.get("id") or ep.get("endpoint")

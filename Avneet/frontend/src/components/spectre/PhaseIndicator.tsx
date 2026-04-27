@@ -5,9 +5,9 @@ interface PhaseIndicatorProps {
 }
 
 const phases = [
-  { step: 1, label: "Discovery" },
-  { step: 2, label: "Classification" },
-  { step: 3, label: "AI Analysis" },
+  { step: 1, label: "Discovery Agent" },
+  { step: 2, label: "Classifier" },
+  { step: 3, label: "AI Layer" },
 ];
 
 const PhaseIndicator = ({ currentPhase }: PhaseIndicatorProps) => {

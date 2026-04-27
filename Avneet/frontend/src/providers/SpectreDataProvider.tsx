@@ -1,7 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   DISCOVERED_APIS,
-  DECOMMISSION_QUEUE,
   SERVICE_CONTEXT,
   ONBOARDING_ANSWERS,
 } from "@/data/mockData";
@@ -48,6 +47,34 @@ function toDecommissionQueue(queueRecords: unknown[]): DecommissionQueueItem[] {
   });
 }
 
+function normalizeOnboarding(data: Record<string, unknown> | OnboardingAnswers): OnboardingAnswers {
+  const criticalService = typeof data["critical_service"] === "string"
+    ? String(data["critical_service"])
+    : typeof data["critical_service_description"] === "string"
+      ? String(data["critical_service_description"])
+      : "";
+
+  return {
+    system_type: String(data["system_type"] || ""),
+    data_handled: Array.isArray(data["data_handled"]) ? (data["data_handled"] as string[]) : [],
+    regulations: Array.isArray(data["regulations"]) ? (data["regulations"] as string[]) : [],
+    critical_service: criticalService,
+    api_consumers: Array.isArray(data["api_consumers"]) ? (data["api_consumers"] as string[]) : [],
+  };
+}
+
+function buildImportanceQueue(inventoryRecords: ApiEndpointUI[]): DecommissionQueueItem[] {
+  const now = new Date().toISOString();
+  return inventoryRecords
+    .filter((ep) => (ep.importance_score || 0) >= 70)
+    .sort((a, b) => (b.priority_score || b.importance_score || 0) - (a.priority_score || a.importance_score || 0))
+    .map((ep) => ({
+      api_id: String(ep.id || ep.path || ""),
+      status: "pending",
+      added_at: now,
+    }));
+}
+
 const SpectreDataContext = createContext<SpectreDataValue | null>(null);
 
 export function SpectreDataProvider({ children }: { children: React.ReactNode }) {
@@ -59,7 +86,7 @@ export function SpectreDataProvider({ children }: { children: React.ReactNode })
     MODE === "live" ? [] : (DISCOVERED_APIS as ApiEndpointUI[])
   );
   const [decommissionQueue, setDecommissionQueue] = useState<DecommissionQueueItem[]>(
-    MODE === "live" ? [] : (DECOMMISSION_QUEUE as DecommissionQueueItem[])
+    MODE === "live" ? [] : buildImportanceQueue(DISCOVERED_APIS as ApiEndpointUI[])
   );
   const [graph, setGraph] = useState<GraphResponse>(
     MODE === "live"
@@ -67,7 +94,7 @@ export function SpectreDataProvider({ children }: { children: React.ReactNode })
       : { nodes: [], edges: [], summary: {}, service_context: SERVICE_CONTEXT as ServiceContext[] }
   );
   const [onboarding, setOnboarding] = useState<OnboardingAnswers | Record<string, unknown>>(
-    MODE === "live" ? {} : (ONBOARDING_ANSWERS as OnboardingAnswers)
+    MODE === "live" ? {} : normalizeOnboarding(ONBOARDING_ANSWERS as Record<string, unknown>)
   );
 
   const mounted = useRef(true);
@@ -84,9 +111,9 @@ export function SpectreDataProvider({ children }: { children: React.ReactNode })
       setLoading(false);
       setError(null);
       setInventory(DISCOVERED_APIS as ApiEndpointUI[]);
-      setDecommissionQueue(DECOMMISSION_QUEUE as DecommissionQueueItem[]);
+      setDecommissionQueue(buildImportanceQueue(DISCOVERED_APIS as ApiEndpointUI[]));
       setGraph({ nodes: [], edges: [], summary: {}, service_context: SERVICE_CONTEXT as ServiceContext[] });
-      setOnboarding(ONBOARDING_ANSWERS as OnboardingAnswers);
+      setOnboarding(normalizeOnboarding(ONBOARDING_ANSWERS as Record<string, unknown>));
       return;
     }
 
@@ -110,7 +137,7 @@ export function SpectreDataProvider({ children }: { children: React.ReactNode })
       setInventory((Array.isArray(inv) ? (inv as ApiEndpointUI[]) : []) as ApiEndpointUI[]);
       setDecommissionQueue(toDecommissionQueue(Array.isArray(q) ? (q as unknown[]) : []));
       setGraph((g || { nodes: [], edges: [], summary: {}, service_context: [] }) as GraphResponse);
-      setOnboarding((ob || ONBOARDING_ANSWERS) as OnboardingAnswers);
+      setOnboarding(normalizeOnboarding((ob || ONBOARDING_ANSWERS) as Record<string, unknown>));
       setLoading(false);
     } catch (e: unknown) {
       cancel();
@@ -133,9 +160,9 @@ export function SpectreDataProvider({ children }: { children: React.ReactNode })
         setResolvedMode("mock");
         setError(null);
         setInventory(DISCOVERED_APIS as ApiEndpointUI[]);
-        setDecommissionQueue(DECOMMISSION_QUEUE as DecommissionQueueItem[]);
+        setDecommissionQueue(buildImportanceQueue(DISCOVERED_APIS as ApiEndpointUI[]));
         setGraph({ nodes: [], edges: [], summary: {}, service_context: SERVICE_CONTEXT as ServiceContext[] });
-        setOnboarding(ONBOARDING_ANSWERS as OnboardingAnswers);
+        setOnboarding(normalizeOnboarding(ONBOARDING_ANSWERS as Record<string, unknown>));
         setLoading(false);
       }
     }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, Star, ArrowRight } from "lucide-react";
 import PhaseIndicator from "./PhaseIndicator";
 import StateBadge from "./StateBadge";
@@ -10,12 +10,15 @@ interface ClassificationPhaseProps {
   onComplete: () => void;
 }
 
+const EMPTY_INVENTORY = [];
+
 const ClassificationPhase = ({ onComplete }: ClassificationPhaseProps) => {
   const { inventory, loading } = useSpectreData();
   const [showOwasp, setShowOwasp] = useState(false);
+  const [revealedCount, setRevealedCount] = useState(0);
 
   const total = inventory?.length || 0;
-  const classified = inventory || [];
+  const classified = inventory ?? EMPTY_INVENTORY;
   
   // OWASP checks are derived from actual inventory data
   const owaspChecks = ["API2", "API4", "API8", "API9"];
@@ -25,6 +28,20 @@ const ClassificationPhase = ({ onComplete }: ClassificationPhaseProps) => {
     {} as Record<string, number>
   );
 
+  useEffect(() => {
+    setRevealedCount(0);
+    if (!classified.length) return;
+
+    let revealed = 0;
+    const timer = window.setInterval(() => {
+      revealed += 1;
+      setRevealedCount(Math.min(classified.length, revealed));
+      if (revealed >= classified.length) window.clearInterval(timer);
+    }, 140);
+
+    return () => window.clearInterval(timer);
+  }, [classified]);
+
   return (
     <div className="min-h-screen animate-spectre-fade-in">
       <NavBar />
@@ -32,15 +49,18 @@ const ClassificationPhase = ({ onComplete }: ClassificationPhaseProps) => {
       <div className="mx-auto max-w-[800px] px-6">
         <div className="mb-5">
           <h2 className="mb-3 text-lg font-medium text-foreground">
-            Classified {total} APIs
+            Classifier labeled {Math.min(revealedCount, total)} discovered APIs
           </h2>
+          <p className="mb-3 text-sm text-muted-foreground">
+            Discovery output is now normalized into endpoint states, OWASP signals, and service ownership before being sent to the AI Layer.
+          </p>
           <div className="h-0.5 overflow-hidden rounded-full bg-muted">
-            <div className="h-full rounded-full bg-spectre-active" style={{ width: '100%' }} />
+            <div className="h-full rounded-full bg-spectre-active transition-all duration-300" style={{ width: `${total ? (revealedCount / total) * 100 : 0}%` }} />
           </div>
         </div>
 
         <div className="mb-8 grid grid-cols-3 gap-2.5">
-          {classified.map((api) => (
+          {classified.slice(0, revealedCount).map((api) => (
             <div key={api.id} className="rounded-xl border border-border bg-card p-3 animate-spectre-fade-in">
               <div className="mb-1 flex items-center gap-2">
                 <MethodBadge method={api.method} />
@@ -113,7 +133,7 @@ const ClassificationPhase = ({ onComplete }: ClassificationPhaseProps) => {
             onClick={onComplete}
             className="inline-flex items-center gap-2 rounded-lg bg-[#E24B4A] px-5 py-2.5 text-sm font-medium text-white transition-all hover:opacity-90 active:scale-[0.98]"
           >
-            Proceed to AI Analysis
+            Send results to AI Layer
             <ArrowRight className="h-4 w-4" />
           </button>
         </div>

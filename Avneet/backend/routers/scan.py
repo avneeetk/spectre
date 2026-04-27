@@ -8,10 +8,13 @@ import os
 import json
 import requests
 import hashlib
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from typing import Any, Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+from services.data_loader import load_json
 
 router = APIRouter(prefix="/api/scan", tags=["scan"])
 
@@ -23,6 +26,7 @@ CLASSIFIER_URL = os.environ.get("SPECTRE_M2_URL", "http://classifier:8003")
 # Debug flag to save JSON backups
 SAVE_DEBUG = os.environ.get("SPECTRE_SAVE_DEBUG", "true").lower() in {"1", "true", "yes"}
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
+M2_OWASP_CONCURRENCY = max(int(os.environ.get("SPECTRE_M2_OWASP_CONCURRENCY", "8")), 1)
 
 
 class ScanRequest(BaseModel):
@@ -35,6 +39,9 @@ class ScanRequest(BaseModel):
     network_interface: Optional[str] = None
     docker_socket: Optional[str] = None
     scan_sources: Optional[dict] = None
+
+
+REQUIRED_ONBOARDING_KEYS = {"system_type", "regulations", "api_consumers", "critical_service"}
 
 
 def _http_post(url: str, body: Any, timeout: int = 60) -> Any:
@@ -126,12 +133,26 @@ def _stable_id(method: str, path: str) -> str:
     return hashlib.sha1(seed.encode("utf-8")).hexdigest()[:12]
 
 
+def _require_onboarding_context() -> dict:
+    onboarding = load_json("onboarding.json", default={})
+    if not isinstance(onboarding, dict):
+        raise HTTPException(status_code=400, detail="Onboarding must be completed before starting a scan")
+
+    missing = [key for key in REQUIRED_ONBOARDING_KEYS if not onboarding.get(key)]
+    if missing:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Onboarding must be completed before starting a scan. Missing: {', '.join(missing)}",
+        )
+    return onboarding
+
+
 def _to_m2_discovered_endpoint(ep: dict, *, raw_context_as: str = "string") -> dict | None:
     """
     Convert M1 scanner record into Gurleen/M2 `DiscoveredEndpoint` schema.
     M2 expects:
-      - raw_context: Dict[str, Any]
-      - path_conflict: Optional[bool] (conflict exists or not)
+      - raw_context: string or dict (schema drift handled by caller retry)
+      - path_conflict: Optional[str]
     """
     path = ep.get("path") or ep.get("endpoint")
     if not path:
@@ -162,7 +183,7 @@ def _to_m2_discovered_endpoint(ep: dict, *, raw_context_as: str = "string") -> d
         raw_context = str(raw_context_text)
 
     conflict_raw = ep.get("also_found_in_conflict_with") or ep.get("path_conflict")
-    path_conflict = True if (isinstance(conflict_raw, str) and conflict_raw.strip()) else None
+    path_conflict = str(conflict_raw).strip() if isinstance(conflict_raw, str) and conflict_raw.strip() else None
 
     auth_detected = bool(ep.get("auth_detected", False))
     auth_type = ep.get("auth_type") or ("jwt" if auth_detected else "none")
@@ -184,7 +205,7 @@ def _to_m2_discovered_endpoint(ep: dict, *, raw_context_as: str = "string") -> d
         "last_seen": ep.get("last_seen"),
         "tags": tags,
         "raw_context": raw_context,
-        "has_owner": bool(ep.get("has_owner", False)),
+        "has_owner": bool(ep.get("has_owner") or ep.get("owner_team")),
     }
 
 
@@ -197,7 +218,8 @@ def _transform_scanner_to_canonical(scanner_eps: list[dict]) -> list[dict]:
             continue
 
         state = _canonical_state(ep)
-        flags = ep.get("owasp_flags") if isinstance(ep.get("owasp_flags"), list) else _derive_owasp_flags(ep)
+        raw_flags = ep.get("owasp_flags")
+        flags = [str(flag) for flag in raw_flags if str(flag).strip()] if isinstance(raw_flags, list) else []
         method = (ep.get("method") or "GET").upper()
         endpoint_id = ep.get("id") or ep.get("endpoint_id") or _stable_id(method, path)
 
@@ -223,11 +245,77 @@ def _transform_scanner_to_canonical(scanner_eps: list[dict]) -> list[dict]:
     return result
 
 
+def _extract_m2_owasp_flags(m2_owasp_resp: dict) -> tuple[list[str], list[dict]]:
+    failures = m2_owasp_resp.get("failures")
+    if not isinstance(failures, list):
+        return [], []
+
+    flags: list[str] = []
+    normalized_failures: list[dict] = []
+    for failure in failures:
+        if not isinstance(failure, dict):
+            continue
+        normalized_failures.append(failure)
+        check_id = failure.get("check_id")
+        if isinstance(check_id, str) and check_id.strip():
+            flags.append(check_id.strip())
+
+    return sorted(set(flags)), normalized_failures
+
+
+def _fetch_m2_owasp(endpoint_id: str, discovered_ep: dict) -> tuple[str, dict | None, str | None]:
+    try:
+        owasp_resp = _http_post(
+            f"{CLASSIFIER_URL}/owasp",
+            {"endpoint": discovered_ep, "active": False},
+            timeout=30,
+        )
+        if isinstance(owasp_resp, dict):
+            return endpoint_id, owasp_resp, None
+        return endpoint_id, None, "OWASP response was not a JSON object"
+    except Exception as e:
+        return endpoint_id, None, str(e)
+
+
+def _normalise_m3_results(m3_results: Any, m3_payload: list[dict]) -> list[dict]:
+    """
+    Harjot's agent currently returns endpoint-level analysis without stable ids/methods.
+    Reattach those fields from the payload we sent so saved artifacts can be rejoined later.
+    """
+    normalised: list[dict] = []
+
+    if not isinstance(m3_results, list):
+        return normalised
+
+    for index, item in enumerate(m3_results):
+        if not isinstance(item, dict):
+            continue
+
+        seed = m3_payload[index] if index < len(m3_payload) and isinstance(m3_payload[index], dict) else {}
+        enriched = dict(item)
+
+        if seed.get("id") and not enriched.get("id"):
+            enriched["id"] = seed["id"]
+        if seed.get("method") and not enriched.get("method"):
+            enriched["method"] = seed["method"]
+        if seed.get("endpoint") and not enriched.get("endpoint"):
+            enriched["endpoint"] = seed["endpoint"]
+        if seed.get("service_name") and not enriched.get("service_name"):
+            enriched["service_name"] = seed["service_name"]
+
+        normalised.append(enriched)
+
+    return normalised
+
+
 def _prepare_m3_payload(canonical_eps: list[dict]) -> list[dict]:
     """Prepare payload for M3 (Agent) service."""
     return [
         {
+            "id": ep["id"],
             "endpoint": ep["endpoint"],
+            "method": ep["method"],
+            "service_name": ep.get("service_name", ""),
             "state": ep.get("state", "Unknown"),
             "last_seen_days_ago": int(ep.get("last_seen_days_ago") or 0),
             "auth_present": bool(ep.get("auth_present")),
@@ -250,7 +338,13 @@ def trigger_scan(req: ScanRequest):
     4. Return enriched data for dashboard
     """
     try:
+        _require_onboarding_context()
+        warnings: list[str] = []
+        timings: dict[str, float] = {}
+        scan_started = time.perf_counter()
+
         # Step 1: Call Scanner Service (M1)
+        scanner_started = time.perf_counter()
         if req.repo_url:
             print(f"[scan] Calling scanner GitHub scan at {SCANNER_URL}/scan/github")
             try:
@@ -280,6 +374,8 @@ def trigger_scan(req: ScanRequest):
         if not scanner_eps:
             raise HTTPException(status_code=502, detail="Scanner returned no endpoints")
 
+        timings["scanner_seconds"] = round(time.perf_counter() - scanner_started, 2)
+        print(f"[scan] Scanner completed in {timings['scanner_seconds']}s with {len(scanner_eps)} endpoints")
         _save_debug("scanner_raw.json", {"endpoints": scanner_eps})
 
         # Transform to canonical format
@@ -287,6 +383,7 @@ def trigger_scan(req: ScanRequest):
 
         # Step 2: Call Classifier (M2) - optional enrichment
         try:
+            m2_started = time.perf_counter()
             def build_m2_payload(raw_context_as: str) -> list[dict]:
                 payload: list[dict] = []
                 for raw in scanner_eps:
@@ -298,6 +395,12 @@ def trigger_scan(req: ScanRequest):
                 return payload
 
             discovered_for_m2 = build_m2_payload("string")
+            discovered_by_id = {
+                str(item.get("id")): item
+                for item in discovered_for_m2
+                if isinstance(item, dict) and item.get("id")
+            }
+            _save_debug("m2_payload.json", {"endpoints": discovered_for_m2})
 
             print(f"[scan] Calling classifier at {CLASSIFIER_URL}/classify/batch")
             try:
@@ -313,7 +416,30 @@ def trigger_scan(req: ScanRequest):
                     raise
             if not isinstance(m2_resp, list):
                 raise ValueError(f"M2 returned non-list payload: {type(m2_resp)}")
+            _save_debug("m2_classify_raw.json", {"endpoints": m2_resp})
             print(f"[scan] M2 returned {len(m2_resp)} results, sample: {m2_resp[:2] if m2_resp else 'empty'}")
+            timings["m2_classify_seconds"] = round(time.perf_counter() - m2_started, 2)
+            print(f"[scan] M2 classify completed in {timings['m2_classify_seconds']}s")
+
+            m2_owasp_by_id: dict[str, dict] = {}
+            owasp_started = time.perf_counter()
+            owasp_workers = min(M2_OWASP_CONCURRENCY, max(len(discovered_by_id), 1))
+            with ThreadPoolExecutor(max_workers=owasp_workers) as executor:
+                future_map = {
+                    executor.submit(_fetch_m2_owasp, endpoint_id, discovered_ep): endpoint_id
+                    for endpoint_id, discovered_ep in discovered_by_id.items()
+                }
+                for future in as_completed(future_map):
+                    endpoint_id, owasp_resp, error = future.result()
+                    if isinstance(owasp_resp, dict):
+                        m2_owasp_by_id[endpoint_id] = owasp_resp
+                    elif error:
+                        print(f"[scan] M2 OWASP unavailable for {endpoint_id}: {error}")
+            timings["m2_owasp_seconds"] = round(time.perf_counter() - owasp_started, 2)
+            print(
+                f"[scan] M2 OWASP completed in {timings['m2_owasp_seconds']}s "
+                f"for {len(m2_owasp_by_id)}/{len(discovered_by_id)} endpoints using {owasp_workers} workers"
+            )
 
             # Enrich canonical data with M2 results
             m2_by_id = {r.get("endpoint_id"): r for r in m2_resp if isinstance(r, dict) and r.get("endpoint_id")}
@@ -354,6 +480,12 @@ def trigger_scan(req: ScanRequest):
                     except (TypeError, ValueError):
                         pass
 
+                owasp_resp = m2_owasp_by_id.get(str(ep_id)) if ep_id else None
+                if isinstance(owasp_resp, dict):
+                    m2_flags, failures = _extract_m2_owasp_flags(owasp_resp)
+                    ep["m2_owasp_failures"] = failures
+                    ep["owasp_flags"] = m2_flags
+
             print(f"[scan] Enriched {len([e for e in canonical_eps if e.get('technical_score')])} endpoints via M2")
         except Exception as e:
             print(f"[scan] M2 classifier unavailable or error: {e}")
@@ -369,9 +501,20 @@ def trigger_scan(req: ScanRequest):
         m3_payload = _prepare_m3_payload(canonical_eps)
         _save_debug("m3_payload.json", {"data": m3_payload})
 
-        print(f"[scan] Calling agent at {AGENT_URL}/analyze/batch")
-        m3_resp = _http_post(f"{AGENT_URL}/analyze/batch", m3_payload, timeout=240)
-        m3_results = m3_resp.get("data", [])
+        m3_results: list[dict] = []
+        m3_started = time.perf_counter()
+        try:
+            print(f"[scan] Calling agent at {AGENT_URL}/analyze/batch")
+            m3_resp = _http_post(f"{AGENT_URL}/analyze/batch", m3_payload, timeout=240)
+            raw_m3_results = m3_resp.get("data", []) if isinstance(m3_resp, dict) else []
+            m3_results = _normalise_m3_results(raw_m3_results, m3_payload)
+            if raw_m3_results and not m3_results:
+                raise ValueError("Agent returned no usable result records")
+        except Exception as e:
+            print(f"[scan] M3 agent unavailable or error: {e}")
+            warnings.append(f"Agent unavailable: {e}")
+        timings["m3_agent_seconds"] = round(time.perf_counter() - m3_started, 2)
+        print(f"[scan] M3 completed in {timings['m3_agent_seconds']}s with {len(m3_results)} results")
 
         # Save agent results as bare list (not wrapped) for data_loader compatibility
         agent_path = os.path.join(DATA_DIR, "agent_results.json")
@@ -380,12 +523,29 @@ def trigger_scan(req: ScanRequest):
         print(f"[scan] Saved agent results: {agent_path}")
 
         # Step 4: Merge M3 results with canonical data
-        result_index = {r.get("endpoint"): r for r in m3_results if isinstance(r, dict)}
+        # Use id first, then fallback to method+endpoint
+        result_index = {}
+        for r in m3_results:
+            if isinstance(r, dict):
+                if r.get("id"):
+                    result_index[r["id"]] = r
+                else:
+                    # Fallback: method+endpoint key
+                    method_ep_key = f"{r.get('method', '')}:{r.get('endpoint', '')}"
+                    result_index[method_ep_key] = r
+        
         final_data = []
 
         for ep in canonical_eps:
-            endpoint = ep.get("endpoint")
-            m3_rec = result_index.get(endpoint)
+            m3_rec = None
+            # Try matching by id first
+            if ep.get("id"):
+                m3_rec = result_index.get(ep["id"])
+            
+            # Fallback to method+endpoint if no id match
+            if not m3_rec:
+                method_ep_key = f"{ep.get('method', '')}:{ep.get('endpoint', '')}"
+                m3_rec = result_index.get(method_ep_key)
 
             merged = {
                 **ep,
@@ -398,6 +558,9 @@ def trigger_scan(req: ScanRequest):
 
         # Save final merged output
         _save_debug("final_inventory.json", {"endpoints": final_data})
+        timings["total_seconds"] = round(time.perf_counter() - scan_started, 2)
+        _save_debug("scan_timings.json", timings)
+        print(f"[scan] Total pipeline completed in {timings['total_seconds']}s")
 
         return {
             "status": "success",
@@ -417,6 +580,8 @@ def trigger_scan(req: ScanRequest):
                 "docker_socket": req.docker_socket,
             },
             "debug_saved": SAVE_DEBUG,
+            "warnings": warnings,
+            "timings": timings,
         }
 
     except HTTPException:

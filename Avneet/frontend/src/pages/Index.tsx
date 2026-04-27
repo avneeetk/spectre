@@ -25,22 +25,22 @@ const Index = () => {
 
   const handleScanComplete = useCallback((data: ScanResult) => {
     setScanResult(data);
-    goTo("onboarding");
+    goTo("discovery");
   }, [goTo]);
 
   return (
     <div className="min-h-screen bg-background transition-colors duration-300">
-      {screen === "landing" && <LandingPage onStart={() => goTo("config")} />}
-      {screen === "config" && (
-        <ScanConfig 
-          onContinue={handleScanComplete} 
+      {screen === "landing" && <LandingPage onStart={() => goTo("onboarding")} />}
+      {screen === "onboarding" && (
+        <OnboardingFlow 
+          onStartScan={() => goTo("config")} 
           onBack={() => goTo("landing")} 
         />
       )}
-      {screen === "onboarding" && (
-        <OnboardingFlow 
-          onStartScan={() => goTo("discovery")} 
-          onBack={() => goTo("config")} 
+      {screen === "config" && (
+        <ScanConfig
+          onContinue={handleScanComplete}
+          onBack={() => goTo("onboarding")}
         />
       )}
       {screen === "discovery" && <DiscoveryPhase onComplete={() => goTo("classification")} />}

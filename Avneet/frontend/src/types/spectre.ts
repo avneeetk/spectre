@@ -19,6 +19,30 @@ export interface ApiEndpointUI {
   owasp_checks: Record<string, OwaspCheck>;
   technical_score: number;
   importance_score: number;
+  base_importance_score?: number | null;
+  priority_score?: number | null;
+  priority_rank?: number | null;
+  importance_reason?: string[] | null;
+  importance_summary?: string | null;
+  priority_reason?: string | null;
+  priority_reason_lines?: string[] | null;
+  priority_summary?: string | null;
+  why_this_matters?: string | null;
+  business_impact?: string | null;
+  business_tags?: string[] | null;
+  impact_summary?: string | null;
+  blast_radius_services?: number | null;
+  blast_radius_reason?: string | null;
+  onboarding_context?: {
+    domain?: string;
+    regulation?: string;
+    impact?: string;
+  } | null;
+  owner_team?: string | null;
+  domain?: string | null;
+  data_sensitivity?: string | null;
+  is_external_facing?: boolean | null;
+  regulatory_scope?: string[] | null;
 
   sources?: string[];
   in_repo?: boolean;

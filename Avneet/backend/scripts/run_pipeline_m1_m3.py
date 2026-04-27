@@ -1,14 +1,4 @@
-#!/usr/bin/env python3
-"""
-Pipeline runner (Stage-2 integration):
-- Calls Member 1 (Neeraj) service to discover endpoints
-- Writes Avneet/backend/data/scanner_output.json (canonical bridge schema)
-- Calls Member 3 (Harjot) service to generate AI results
-- Writes Avneet/backend/data/agent_results.json (canonical agent schema)
 
-This intentionally does NOT depend on Member 2 (Gurleen) having a FastAPI service yet.
-Once M2 is available, the runner can insert the classifier step between M1 and M3.
-"""
 
 from __future__ import annotations
 

@@ -437,7 +437,7 @@ export const ONBOARDING_ANSWERS = {
   system_type: "fintech",
   data_handled: ["financial_transactions", "customer_personal_data", "authentication_identity"],
   regulations: ["pci", "gdpr"],
-  critical_service_description: "processes customer payments and manages bank account balances",
+  critical_service: "processes customer payments and manages bank account balances",
   api_consumers: ["public_internet", "mobile_apps", "partner_apis", "internal_services"]
 };
 

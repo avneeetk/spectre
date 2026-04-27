@@ -69,6 +69,8 @@ const sourceCards = [
 const DiscoveryPhase = ({ onComplete }: DiscoveryPhaseProps) => {
   const { inventory, loading, refresh } = useSpectreData();
   const [logLines, setLogLines] = useState<{source: string; text: string; state?: string}[]>([]);
+  const [visibleLogs, setVisibleLogs] = useState<{source: string; text: string; state?: string}[]>([]);
+  const [displayCount, setDisplayCount] = useState(0);
   const logRef = useRef<HTMLDivElement>(null);
 
   // Refresh data on mount to get fresh scan results
@@ -83,6 +85,28 @@ const DiscoveryPhase = ({ onComplete }: DiscoveryPhaseProps) => {
       setLogLines(lines);
     }
   }, [inventory]);
+
+  useEffect(() => {
+    setVisibleLogs([]);
+    setDisplayCount(0);
+
+    if (!logLines.length) return;
+
+    const countStep = Math.max(1, Math.ceil(logLines.length / 8));
+    let revealed = 0;
+    const timer = window.setInterval(() => {
+      revealed += 1;
+      const nextCount = Math.min(logLines.length, revealed);
+      setVisibleLogs(logLines.slice(0, nextCount));
+      setDisplayCount(Math.min(logLines.length, nextCount * countStep));
+      if (nextCount >= logLines.length) {
+        setDisplayCount(logLines.length);
+        window.clearInterval(timer);
+      }
+    }, 180);
+
+    return () => window.clearInterval(timer);
+  }, [logLines]);
 
   // Auto-scroll to latest log
   useEffect(() => {
@@ -104,7 +128,7 @@ const DiscoveryPhase = ({ onComplete }: DiscoveryPhaseProps) => {
       return false;
     });
     
-    if (!activeSources.has(key)) return "idle";
+    if (!activeSources.has(key)) return loading ? "active" : "idle";
     if (hasSourceApis) return "done";
     return "active";
   };
@@ -115,6 +139,10 @@ const DiscoveryPhase = ({ onComplete }: DiscoveryPhaseProps) => {
       <PhaseIndicator currentPhase={1} />
       <div className="mx-auto flex max-w-6xl gap-6 px-6">
         <div className="w-[58%]">
+          <div className="mb-5">
+            <h2 className="text-lg font-medium text-foreground">Discovery agent is mapping your API surface</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Gateway, repo, traffic, and container signals are merged here before the results are handed to the classifier.</p>
+          </div>
           <div className="mb-5 grid grid-cols-2 gap-2.5">
             {sourceCards.map((card) => {
               const state = getCardState(card.key);
@@ -149,7 +177,7 @@ const DiscoveryPhase = ({ onComplete }: DiscoveryPhaseProps) => {
 
           <div className="rounded-xl border border-border bg-card p-5 text-center">
             <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-1">APIs found</div>
-            <div className="text-4xl font-medium tabular-nums text-foreground">{apiCount}</div>
+            <div className="text-4xl font-medium tabular-nums text-foreground">{displayCount}</div>
           </div>
 
           {hasData && (
@@ -159,7 +187,7 @@ const DiscoveryPhase = ({ onComplete }: DiscoveryPhaseProps) => {
                 disabled={loading}
                 className="inline-flex items-center gap-2 rounded-lg bg-[#E24B4A] px-5 py-2.5 text-sm font-medium text-white transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-50"
               >
-                {loading ? 'Loading...' : 'Proceed to Classification'}
+                {loading ? 'Loading...' : 'Send results to classifier'}
                 <ArrowRight className="h-4 w-4" />
               </button>
             </div>
@@ -183,7 +211,7 @@ const DiscoveryPhase = ({ onComplete }: DiscoveryPhaseProps) => {
               {!loading && logLines.length === 0 && (
                 <span className="text-gray-600">Waiting for scan data...</span>
               )}
-              {logLines.map((line, i) => (
+              {visibleLogs.map((line, i) => (
                 <div key={i} className="mb-0.5">
                   <span className={SOURCE_COLORS[line.source] || "text-gray-500"}>
                     [{line.source}]

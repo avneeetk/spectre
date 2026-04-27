@@ -283,12 +283,7 @@ const OnboardingFlow = ({ onStartScan, onBack }: OnboardingFlowProps) => {
             )}
 
             <div className="flex items-center justify-between">
-              <button
-                onClick={goNext}
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Skip this question →
-              </button>
+              <div className="text-xs text-muted-foreground">Required for business-aware prioritization</div>
               <button
                 onClick={goNext}
                 disabled={!canContinue()}
@@ -339,7 +334,7 @@ const OnboardingFlow = ({ onStartScan, onBack }: OnboardingFlowProps) => {
                 disabled={isSubmitting}
                 className="inline-flex items-center gap-2 rounded-lg bg-[#E24B4A] px-6 py-3 text-sm font-medium text-white transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                {isSubmitting ? "Saving..." : "Start scan"}
+                {isSubmitting ? "Saving..." : "Continue to scan setup"}
                 <ArrowRight className="h-4 w-4" />
               </button>
             </div>

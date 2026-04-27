@@ -1,8 +1,11 @@
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI
 from routers import onboarding, inventory, queue, graph, scan
-from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI()
+app = FastAPI(
+    title="SPECTRE Dashboard API",
+    description="Dashboard API for M1 discovery, M2 classification, and the M3 AI Layer.",
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -22,7 +25,7 @@ HEALTH_CHECK_ENDPOINTS = [
     "/api/inventory",
     "/api/inventory/refresh",
     "/api/queue",
-    "/api/onboarding",
+    # "/api/onboarding",
     "/api/graph",
     "/api/scan/trigger",
     "/api/scan/health/services",

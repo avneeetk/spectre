@@ -2,21 +2,22 @@ import { useState } from "react";
 import { ArrowRight, ArrowLeft, Github, Sparkles, ChevronDown, Shield, Server, Code, Wifi, Container } from "lucide-react";
 import { SCAN_CONFIG } from "@/data/mockData";
 import { refreshInventory } from "@/api/client";
+import { useSpectreData } from "@/providers/SpectreDataProvider";
 import NavBar from "./NavBar";
 
 const FEATURED_REPOS = [
-  {
-    name: "FastAPI + Nginx Proxy Example",
-    desc: "Python APIs behind Nginx reverse proxy (proxy_pass routes)",
-    url: "https://github.com/santibreo/fastapi-nginx-example",
-    highlight: "Best for end-to-end API discovery"
-  },
-  {
-    name: "Nginx Docker Reverse Proxy",
-    desc: "Dynamic routing using nginx proxy_pass and containers",
-    url: "https://github.com/nginx-proxy/nginx-proxy",
-    highlight: "Best for gateway + container exposure"
-  },
+  // {
+  //   name: "FastAPI + Nginx Proxy Example",
+  //   desc: "Python APIs behind Nginx reverse proxy (proxy_pass routes)",
+  //   url: "https://github.com/santibreo/fastapi-nginx-example",
+  //   highlight: "Best for end-to-end API discovery"
+  // },
+  // {
+  //   name: "Nginx Docker Reverse Proxy",
+  //   desc: "Dynamic routing using nginx proxy_pass and containers",
+  //   url: "https://github.com/nginx-proxy/nginx-proxy",
+  //   highlight: "Best for gateway + container exposure"
+  // },
   {
     name: "FastAPI Microservices with Kong",
     desc: "Multiple Python services behind Kong API gateway",
@@ -46,6 +47,7 @@ interface ScanConfigProps {
 }
 
 const ScanConfig = ({ onContinue, onBack }: ScanConfigProps) => {
+  const { onboarding } = useSpectreData();
   const [repoUrl, setRepoUrl] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -66,10 +68,26 @@ const ScanConfig = ({ onContinue, onBack }: ScanConfigProps) => {
     { icon: Container, label: "Containers", desc: "Docker and Kubernetes manifests", tag: "Advanced" },
   ];
 
+  const onboardingReady = Boolean(
+    onboarding &&
+    typeof onboarding === "object" &&
+    onboarding["system_type"] &&
+    Array.isArray(onboarding["regulations"]) &&
+    onboarding["regulations"].length > 0 &&
+    Array.isArray(onboarding["api_consumers"]) &&
+    onboarding["api_consumers"].length > 0 &&
+    onboarding["critical_service"]
+  );
+
   const toggle = (i: number) => setToggles((t) => t.map((v, j) => (j === i ? !v : v)));
 
   const handleScan = async () => {
     setError("");
+
+    if (!onboardingReady) {
+      setError("Complete onboarding before starting a scan");
+      return;
+    }
     
     if (!repoUrl) {
       setError("Enter a repository URL to scan");
@@ -104,9 +122,9 @@ const ScanConfig = ({ onContinue, onBack }: ScanConfigProps) => {
         repo_url: repoUrl,
         scan_id: Date.now().toString(),
         timestamp: new Date().toISOString(),
-        endpoints: data.endpoints || [],
-        total: data.total || 0,
-        sources: data.sources || {}
+        endpoints: data.inventory || [],
+        total: data.scan?.total || data.inventory?.length || 0,
+        sources: data.scan?.sources || {}
       };
 
       onContinue(scanResult);
@@ -133,11 +151,16 @@ const ScanConfig = ({ onContinue, onBack }: ScanConfigProps) => {
           Scan your APIs instantly
         </h1>
         <p className="text-sm text-muted-foreground mb-8">
-          Paste a GitHub repository or try a real-world example.
+          Onboarding is complete. Paste a GitHub repository or try a real-world example.
         </p>
+        {!onboardingReady && (
+          <div className="mb-5 rounded-lg border border-[#E24B4A]/20 bg-[#E24B4A]/[0.06] p-3 text-[11px] text-[#A43A37]">
+            Business context is required before scan because importance, regulation, and graph-based priority now drive the dashboard.
+          </div>
+        )}
         <div className="mb-5 rounded-lg border border-border bg-muted/20 p-3 text-[11px] text-muted-foreground">
-          Demo note: the current scanner service runs on bundled sample files via M1 <code className="font-mono">/scan/sample</code>.
-          The repo URL is stored for UX and future ingestion, but it does not change the scan output yet.
+          Demo note: scanner will attempt GitHub analysis first if a repo URL is provided, then fall back to bundled sample files.
+          The repo URL directly affects scan output and discovery results.
         </div>
 
         {/* MAIN ACTION: GitHub Scan */}
@@ -160,7 +183,7 @@ const ScanConfig = ({ onContinue, onBack }: ScanConfigProps) => {
           )}
           <button
             onClick={handleScan}
-            disabled={loading}
+            disabled={loading || !onboardingReady}
             className="w-full rounded-lg bg-[#E24B4A] py-2.5 text-sm font-medium text-white transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {loading ? (

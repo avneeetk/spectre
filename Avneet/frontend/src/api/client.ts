@@ -64,7 +64,17 @@ export function getGraph(init?: RequestInit): Promise<Record<string, unknown>> {
 export function refreshInventory(
   body: Record<string, unknown> = {},
   init?: RequestInit
-): Promise<{ status: string; total: number; endpoints: any[]; sources: Record<string, number>; context: Record<string, unknown>; debug_saved: boolean }> {
+): Promise<{
+  scan: {
+    status: string;
+    total: number;
+    endpoints: unknown[];
+    sources: Record<string, number>;
+    context: Record<string, unknown>;
+    debug_saved: boolean;
+  };
+  inventory: unknown[];
+}> {
   return fetchJson("/api/inventory/refresh", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
