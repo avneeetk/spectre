@@ -80,7 +80,7 @@ def _canonical_state(ep: dict) -> str:
     in_gateway = bool(ep.get("in_gateway"))
     in_repo = bool(ep.get("in_repo"))
     seen_in_traffic = bool(ep.get("seen_in_traffic"))
-    conflict = ep.get("also_found_in_conflict_with") or ep.get("path_conflict")
+    conflict = ep.get("also_found_in_conflict_with") 
 
     days = _days_ago_from_iso(ep.get("last_seen"))
     auth = bool(ep.get("auth_detected"))
@@ -165,11 +165,11 @@ def _to_m2_discovered_endpoint(ep: dict, *, raw_context_as: str = "string") -> d
     if not isinstance(last_seen, str) or not last_seen.strip():
         last_seen = None
 
-    # Gurleen/M2 currently types `path_conflict` as Optional[bool] in Pydantic,
+    # Gurleen/M2 currently types `also_found_in_conflict_with` as Optional[bool] in Pydantic,
     # but uses it like "conflict exists". To avoid misclassification, we only ever
     # send `True` (conflict exists) or `None` (no conflict), never `False`.
-    path_conflict_raw = ep.get("path_conflict") or ep.get("also_found_in_conflict_with")
-    path_conflict = True if (isinstance(path_conflict_raw, str) and path_conflict_raw.strip()) else None
+    also_found_in_conflict_with_raw = ep.get("also_found_in_conflict_with") or ep.get("also_found_in_conflict_with")
+    also_found_in_conflict_with = True if (isinstance(also_found_in_conflict_with_raw, str) and also_found_in_conflict_with_raw.strip()) else None
 
     # Gurleen/M2 schema drift: some versions expect `raw_context` as a string, some as a dict.
     raw_context_text = str(ep.get("raw_context") or "")
@@ -190,7 +190,7 @@ def _to_m2_discovered_endpoint(ep: dict, *, raw_context_as: str = "string") -> d
         "seen_in_traffic": bool(ep.get("seen_in_traffic", False)),
         "auth_detected": auth_detected,
         "auth_type": str(auth_type),
-        "path_conflict": path_conflict,
+        "also_found_in_conflict_with": also_found_in_conflict_with,
         "status_codes": status_codes,
         "confidence": float(ep.get("confidence") or 0.0),
         "last_seen": last_seen,
@@ -242,7 +242,7 @@ def run() -> int:
                 "seen_in_traffic": bool(ep.get("seen_in_traffic", False)),
                 "sources": ep.get("sources") if isinstance(ep.get("sources"), list) else [],
                 "raw_context": ep.get("raw_context"),
-                "also_found_in_conflict_with": ep.get("also_found_in_conflict_with") or ep.get("path_conflict"),
+                "also_found_in_conflict_with": ep.get("also_found_in_conflict_with") ,
             }
         )
 

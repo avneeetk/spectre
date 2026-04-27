@@ -98,7 +98,7 @@ def _canonical_state(ep: dict) -> str:
     in_gateway = bool(ep.get("in_gateway"))
     in_repo = bool(ep.get("in_repo"))
     seen_in_traffic = bool(ep.get("seen_in_traffic"))
-    conflict = ep.get("also_found_in_conflict_with") or ep.get("path_conflict")
+    conflict = ep.get("also_found_in_conflict_with") or ep.get("also_found_in_conflict_with")
 
     days = _days_ago_from_iso(ep.get("last_seen"))
     auth = bool(ep.get("auth_detected"))
@@ -152,7 +152,7 @@ def _to_m2_discovered_endpoint(ep: dict, *, raw_context_as: str = "string") -> d
     Convert M1 scanner record into Gurleen/M2 `DiscoveredEndpoint` schema.
     M2 expects:
       - raw_context: string or dict (schema drift handled by caller retry)
-      - path_conflict: Optional[str]
+      - also_found_in_conflict_with: Optional[str]
     """
     path = ep.get("path") or ep.get("endpoint")
     if not path:
@@ -182,8 +182,7 @@ def _to_m2_discovered_endpoint(ep: dict, *, raw_context_as: str = "string") -> d
     else:
         raw_context = str(raw_context_text)
 
-    conflict_raw = ep.get("also_found_in_conflict_with") or ep.get("path_conflict")
-    path_conflict = str(conflict_raw).strip() if isinstance(conflict_raw, str) and conflict_raw.strip() else None
+    None
 
     auth_detected = bool(ep.get("auth_detected", False))
     auth_type = ep.get("auth_type") or ("jwt" if auth_detected else "none")
@@ -199,9 +198,8 @@ def _to_m2_discovered_endpoint(ep: dict, *, raw_context_as: str = "string") -> d
         "seen_in_traffic": bool(ep.get("seen_in_traffic", False)),
         "auth_detected": auth_detected,
         "auth_type": str(auth_type),
-        "path_conflict": path_conflict,
+        "also_found_in_conflict_with": also_found_in_conflict_with,
         "status_codes": status_codes,
-        "confidence": float(ep.get("confidence") or 0.0),
         "last_seen": ep.get("last_seen"),
         "tags": tags,
         "raw_context": raw_context,
@@ -240,7 +238,7 @@ def _transform_scanner_to_canonical(scanner_eps: list[dict]) -> list[dict]:
             "seen_in_traffic": bool(ep.get("seen_in_traffic", False)),
             "sources": ep.get("sources", []),
             "raw_context": ep.get("raw_context"),
-            "also_found_in_conflict_with": ep.get("also_found_in_conflict_with") or ep.get("path_conflict"),
+            "also_found_in_conflict_with": ep.get("also_found_in_conflict_with") or ep.get("also_found_in_conflict_with"),
         })
     return result
 
