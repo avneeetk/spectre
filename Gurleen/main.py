@@ -37,7 +37,7 @@ def health():
 def classify_endpoint(ep: DiscoveredEndpoint):
     # Step 1: Run your classifier
     # classify() is from classifier.py — it looks at ep.in_gateway,
-    # ep.in_repo, ep.seen_in_traffic, ep.path_conflict, ep.last_seen etc.
+    # ep.in_repo, ep.seen_in_traffic, ep.also_found_in_conflict_with, ep.last_seen etc.
     # and returns one of: ROGUE, SHADOW, ZOMBIE, ACTIVE, UNKNOWN
     # plus a human-readable reason string.
     state, state_reason = classify(ep)

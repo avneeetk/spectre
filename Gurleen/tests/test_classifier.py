@@ -12,9 +12,8 @@ tests = [
         "in_repo": True, "in_gateway": True,
         "seen_in_traffic": False,
         "auth_detected": False, "auth_type": "none",
-        "path_conflict": None,
+        "also_found_in_conflict_with": None,
         "status_codes": [200],
-        "confidence": 0.9,
         "last_seen": (datetime.now(timezone.utc) - timedelta(days=170)).isoformat(),
         "tags": [], "raw_context": "", "has_owner": False
     },
@@ -27,9 +26,8 @@ tests = [
         "in_repo": False, "in_gateway": False,
         "seen_in_traffic": True,
         "auth_detected": False, "auth_type": "none",
-        "path_conflict": None,
+        "also_found_in_conflict_with": None,
         "status_codes": [200],
-        "confidence": 0.5,
         "last_seen": datetime.now(timezone.utc).isoformat(),
         "tags": [], "raw_context": "", "has_owner": False
     },
@@ -42,9 +40,8 @@ tests = [
         "in_repo": False, "in_gateway": False,
         "seen_in_traffic": True,
         "auth_detected": False, "auth_type": "none",
-        "path_conflict": "/api/v1/users",
+        "also_found_in_conflict_with": "/api/v1/users",
         "status_codes": [200],
-        "confidence": 0.5,
         "last_seen": datetime.now(timezone.utc).isoformat(),
         "tags": [], "raw_context": "", "has_owner": False
     },
@@ -57,9 +54,8 @@ tests = [
         "in_repo": True, "in_gateway": True,
         "seen_in_traffic": True,
         "auth_detected": True, "auth_type": "jwt",
-        "path_conflict": None,
+        "also_found_in_conflict_with": None,
         "status_codes": [200],
-        "confidence": 0.95,
         "last_seen": datetime.now(timezone.utc).isoformat(),
         "tags": [], "raw_context": "", "has_owner": True
     },
