@@ -182,7 +182,8 @@ def _to_m2_discovered_endpoint(ep: dict, *, raw_context_as: str = "string") -> d
     else:
         raw_context = str(raw_context_text)
 
-    None
+    conflict_raw = ep.get("also_found_in_conflict_with") or ep.get("path_conflict")
+    also_found_in_conflict_with = str(conflict_raw).strip() if isinstance(conflict_raw, str) and conflict_raw.strip() else None
 
     auth_detected = bool(ep.get("auth_detected", False))
     auth_type = ep.get("auth_type") or ("jwt" if auth_detected else "none")

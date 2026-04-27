@@ -192,7 +192,6 @@ def _to_m2_discovered_endpoint(ep: dict, *, raw_context_as: str = "string") -> d
         "auth_type": str(auth_type),
         "also_found_in_conflict_with": also_found_in_conflict_with,
         "status_codes": status_codes,
-        "confidence": float(ep.get("confidence") or 0.0),
         "last_seen": last_seen,
         "tags": tags,
         "raw_context": raw_context,
@@ -236,7 +235,6 @@ def run() -> int:
                 "in_gateway": bool(ep.get("in_gateway", False)),
                 "owasp_flags": flags,
                 "service_name": ep.get("service_name") or "unknown",
-                "confidence": float(ep.get("confidence") or 0.0),
                 # Optional fields consumed by the UI layer:
                 "in_repo": bool(ep.get("in_repo", False)),
                 "seen_in_traffic": bool(ep.get("seen_in_traffic", False)),

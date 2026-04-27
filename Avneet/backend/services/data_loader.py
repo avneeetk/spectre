@@ -511,7 +511,6 @@ def _enrich_for_ui(canonical: dict, ui_seed: dict, onboarding: dict, agent: dict
             "tls_enabled": bool(canonical.get("tls_enabled")),
             "in_gateway": in_gateway,
             "service_name": _normalize_service_name(canonical.get("service_name", "unknown")),
-            "confidence": float(canonical.get("confidence") or 0.0),
             "owasp_flags": owasp_flags,
             "risk_summary": canonical.get("risk_summary"),
             "violations": canonical.get("violations", []) or [],
