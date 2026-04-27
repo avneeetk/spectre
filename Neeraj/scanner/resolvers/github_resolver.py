@@ -47,8 +47,8 @@ _load_env()
 
 GITHUB_API = "https://api.github.com"
 
-def _headers():
-    token = os.environ.get("GITHUB_TOKEN")
+def _headers(token_override: str | None = None):
+    token = (token_override or os.environ.get("GITHUB_TOKEN") or "").strip()
     h = {"Accept": "application/vnd.github+json"}
     if token:
         h["Authorization"] = f"Bearer {token}"
@@ -71,14 +71,14 @@ def _parse_repo_url(url):
     return match.group(1), match.group(2)
 
 
-def _check_repo_exists(owner, repo):
+def _check_repo_exists(owner, repo, token_override: str | None = None):
     """Return True if the repo is accessible, False otherwise."""
     url = f"{GITHUB_API}/repos/{owner}/{repo}"
-    r = requests.get(url, headers=_headers(), timeout=10)
+    r = requests.get(url, headers=_headers(token_override), timeout=10)
     return r.status_code == 200
 
 
-def _search_code(owner, repo, query):
+def _search_code(owner, repo, query, token_override: str | None = None):
     """
     Search for files in a repo using GitHub code search.
     Returns a list of dicts with: path, download_url, html_url
@@ -88,7 +88,7 @@ def _search_code(owner, repo, query):
     url = f"{GITHUB_API}/search/code"
     params = {"q": full_query, "per_page": 10}
 
-    r = requests.get(url, headers=_headers(), params=params, timeout=15)
+    r = requests.get(url, headers=_headers(token_override), params=params, timeout=15)
 
     if r.status_code == 403:
         print("  [github] Rate limit hit. Wait a minute or add a GITHUB_TOKEN to .env")
@@ -112,13 +112,13 @@ def _search_code(owner, repo, query):
     return results
 
 
-def _get_file_content(owner, repo, path):
+def _get_file_content(owner, repo, path, token_override: str | None = None):
     """
     Download raw content of a single file from the repo.
     Returns the content as a string, or None on failure.
     """
     url = f"{GITHUB_API}/repos/{owner}/{repo}/contents/{path}"
-    r = requests.get(url, headers=_headers(), timeout=15)
+    r = requests.get(url, headers=_headers(token_override), timeout=15)
 
     if r.status_code != 200:
         print(f"  [github] Could not download {path} ({r.status_code})")
@@ -178,7 +178,7 @@ FILE_SEARCHES = [
 ]
 
 
-def _discover_files(owner, repo):
+def _discover_files(owner, repo, token_override: str | None = None):
     """
     Run all searches against the repo.
     Returns a list of candidate dicts:
@@ -193,7 +193,7 @@ def _discover_files(owner, repo):
 
     for label, query, file_type in FILE_SEARCHES:
         print(f"  Searching for {label} files...")
-        results = _search_code(owner, repo, query)
+        results = _search_code(owner, repo, query, token_override)
 
         for r in results:
             if r["path"] not in seen_paths:
@@ -204,8 +204,8 @@ def _discover_files(owner, repo):
                     "label": label,
                 })
 
-        # Small pause to avoid hammering the search API
-        time.sleep(1)
+        # Pause to stay under GitHub's 30 req/min rate limit (2s per request)
+        time.sleep(2)
 
     return candidates
 
@@ -249,7 +249,7 @@ def _ask_confirmation(candidates):
 # Download confirmed files to a temp directory
 # ---------------------------------------------------------------------------
 
-def _download_files(owner, repo, confirmed, tmpdir):
+def _download_files(owner, repo, confirmed, tmpdir, token_override: str | None = None):
     """
     Download each confirmed file into tmpdir.
     Returns a structured dict ready for run_scanner():
@@ -273,22 +273,24 @@ def _download_files(owner, repo, confirmed, tmpdir):
     for candidate in confirmed:
         path      = candidate["path"]
         file_type = candidate["file_type"]
-        filename  = Path(path).name
+        # Avoid collisions (multiple repos often have e.g. "routes.py" in many folders).
+        # Keep filenames stable and filesystem-safe.
+        filename = path.strip("/").replace("/", "__")
 
-        content = _get_file_content(owner, repo, path)
+        content = _get_file_content(owner, repo, path, token_override)
         if content is None:
             print(f"  ✗ Failed to download {path}")
             continue
 
         if file_type == "nginx":
-            local_path = os.path.join(tmpdir, filename)
+            local_path = os.path.join(tmpdir, f"nginx__{filename}")
             with open(local_path, "w", encoding="utf-8") as f:
                 f.write(content)
             nginx_configs.append(local_path)
             print(f"  ✓ {path}")
 
         elif file_type == "kong":
-            local_path = os.path.join(tmpdir, filename)
+            local_path = os.path.join(tmpdir, f"kong__{filename}")
             with open(local_path, "w", encoding="utf-8") as f:
                 f.write(content)
             kong_configs.append(local_path)
@@ -403,6 +405,7 @@ def resolve_github_repo():
     print(f"  Traffic log   : not available from repo (skipped)")
 
     return config
+
 
 # ---------------------------------------------------------------------------
 # Non-interactive entry point : used by backend/main.py for API ingestion
