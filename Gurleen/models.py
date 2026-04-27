@@ -39,9 +39,8 @@ class DiscoveredEndpoint(BaseModel):
     seen_in_traffic:             bool
     auth_detected:               bool
     auth_type:                   str
-    path_conflict:               Optional[str]
+    also_found_in_conflict_with: Optional[str]
     status_codes:                list[int]
-    confidence:                  float
     last_seen:                   Optional[datetime]
     tags:                        list[str]
     raw_context:                 str

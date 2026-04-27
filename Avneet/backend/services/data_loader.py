@@ -140,6 +140,89 @@ def _is_external_facing(onboarding: dict) -> bool:
     return bool(api_consumers & {"public_internet", "mobile_apps", "partner_apis"})
 
 
+def _format_regulation(reg: str) -> str:
+    labels = {
+        "pci": "PCI",
+        "hipaa": "HIPAA",
+        "gdpr": "GDPR",
+        "soc2": "SOC 2",
+        "iso27001": "ISO 27001",
+    }
+    return labels.get(reg.lower(), reg.upper())
+
+
+def _priority_sort_key(ep: dict) -> float:
+    priority_score = ep.get("priority_score")
+    if isinstance(priority_score, (int, float)):
+        return float(priority_score)
+    return float(ep.get("importance_score") or 0)
+
+
+def _apply_priority_context(endpoints: list[dict], graph: dict, onboarding: dict) -> None:
+    service_context_list = graph.get("service_context") or []
+    service_context = {
+        svc.get("service_name"): svc
+        for svc in service_context_list
+        if isinstance(svc, dict) and svc.get("service_name")
+    }
+
+    system_type = str((onboarding or {}).get("system_type") or "system").replace("_", " ").title()
+
+    for ep in endpoints:
+        service_name = ep.get("service_name")
+        service_ctx = service_context.get(service_name, {})
+        centrality = float(service_ctx.get("centrality_score") or 0.0)
+        dependent_services = service_ctx.get("dependent_services") or []
+        blast_radius = len(dependent_services) if isinstance(dependent_services, list) else 0
+        base_importance = int(ep.get("importance_score") or 0)
+        adjusted_importance = min(int(round(base_importance * (1 + centrality))), 100)
+        priority_score = round(adjusted_importance * centrality, 2)
+
+        ep["base_importance_score"] = base_importance
+        ep["importance_score"] = adjusted_importance
+        ep["priority_score"] = priority_score
+        ep["centrality_score"] = centrality
+        ep["blast_radius_services"] = blast_radius
+        ep["blast_radius_reason"] = (
+            f"High blast radius — affects {blast_radius} service{'s' if blast_radius != 1 else ''}"
+            if blast_radius
+            else "Low blast radius — isolated service"
+        )
+
+        importance_reasons = ep.get("importance_reason") if isinstance(ep.get("importance_reason"), list) else []
+        if blast_radius and ep["blast_radius_reason"] not in importance_reasons:
+            importance_reasons.append(ep["blast_radius_reason"])
+        ep["importance_reason"] = importance_reasons[:4]
+
+        regulations = ep.get("regulatory_scope") if isinstance(ep.get("regulatory_scope"), list) else []
+        regulation_text = f"Regulation: {', '.join(_format_regulation(r) for r in regulations[:2])}" if regulations else "Regulation: None declared"
+        ep["onboarding_context"] = {
+            "domain": system_type,
+            "regulation": ", ".join(_format_regulation(r) for r in regulations[:2]) if regulations else "None",
+            "impact": ep.get("business_impact") or "LOW",
+        }
+        ep["why_this_matters"] = (
+            f"This API is {str(ep.get('business_impact') or 'LOW').lower()} impact because "
+            f"{'; '.join(str(reason).lower() for reason in ep['importance_reason'][:3])}."
+        )
+        ep["priority_reason_lines"] = [
+            f"Business context: {str(ep.get('business_impact') or 'LOW').title()} impact in {system_type}",
+            f"Technical risk: {len(ep.get('owasp_flags') or [])} OWASP signal(s)",
+            ep["blast_radius_reason"],
+        ]
+        ep["priority_reason"] = "\n".join(ep["priority_reason_lines"])
+        ep["impact_summary"] = f"{system_type} · {regulation_text} · Impact: {ep.get('business_impact') or 'LOW'}"
+
+    ranked = sorted(endpoints, key=_priority_sort_key, reverse=True)
+    for index, ep in enumerate(ranked, start=1):
+        ep["priority_rank"] = index
+        top_reasons = ep.get("importance_reason") if isinstance(ep.get("importance_reason"), list) else []
+        ep["priority_summary"] = (
+            f"This endpoint is ranked #{index} because "
+            f"{'; '.join(str(reason).lower() for reason in top_reasons[:3])}."
+        )
+
+
 def _estimate_technical_score(ep: dict) -> int:
     existing = ep.get("technical_score")
     if isinstance(existing, int):
@@ -212,92 +295,143 @@ def _owasp_checks(ep: dict) -> dict:
     }
 
 
-def _normalise_scanner_record(raw: dict, onboarding: dict) -> tuple[dict, dict]:
+def _normalize_service_name(service_name: str) -> str:
+    """Normalize ugly service names for better UI display."""
+    if not service_name:
+        return "unknown"
+    
+    # Handle common patterns from different scanners
+    patterns = [
+        # FastAPI/Flask patterns
+        (r'^backend__app__api__routes__(.+)$', r'\1'),
+        (r'^app\.routes\.(.+)$', r'\1'),
+        (r'^api\.(.+)$', r'\1'),
+        # Django patterns
+        (r'^.*\.views\.(.+)$', r'\1'),
+        (r'^.*\.urls\.(.+)$', r'\1'),
+        # Generic patterns
+        (r'^.*__(.+)$', r'\1'),
+        (r'^.*\.(.+)$', r'\1'),
+        # Clean up common suffixes
+        (r'(.+)_service$', r'\1'),
+        (r'(.+)_api$', r'\1'),
+        (r'(.+)_controller$', r'\1'),
+        (r'(.+)_handler$', r'\1'),
+    ]
+    
+    import re
+    normalized = service_name
+    for pattern, replacement in patterns:
+        normalized = re.sub(pattern, replacement, normalized, flags=re.IGNORECASE)
+    
+    # Clean up remaining formatting
+    normalized = normalized.replace('_', '-').replace('.', '-')
+    normalized = re.sub(r'-+', '-', normalized)  # Multiple dashes to single
+    normalized = normalized.strip('-')
+    
+    # If still looks like an identifier, make it more readable
+    if re.match(r'^[a-zA-Z0-9_-]+$', normalized):
+        # Convert camelCase to kebab-case
+        normalized = re.sub(r'([a-z])([A-Z])', r'\1-\2', normalized)
+        normalized = normalized.lower()
+    
+    return normalized or service_name
+
+
+def _normalise_scanner_record(raw_ep: dict, onboarding: dict) -> tuple[dict, dict]:
     """
     Accept either:
       - Member-4 canonical scanner schema (endpoint/auth_present/last_seen_days_ago...)
       - Neeraj discovery-engine schema (path/auth_detected/last_seen...)
     Returns (canonical, ui_seed).
     """
-    if "endpoint" in raw:
-        endpoint = raw.get("endpoint") or ""
-        method = (raw.get("method") or "GET").upper()
-        in_gateway = bool(raw.get("in_gateway", False))
-        last_seen_days_ago = raw.get("last_seen_days_ago")
-        in_repo = bool(raw.get("in_repo", False))
-        seen_in_traffic = bool(raw.get("seen_in_traffic", last_seen_days_ago is not None))
+    if "endpoint" in raw_ep:
+        endpoint = raw_ep.get("endpoint") or ""
+        method = (raw_ep.get("method") or "GET").upper()
+        endpoint_id = raw_ep.get("id") or _api_id(method, endpoint)
+        in_gateway = bool(raw_ep.get("in_gateway", False))
+        last_seen_days_ago = raw_ep.get("last_seen_days_ago")
+        in_repo = bool(raw_ep.get("in_repo", False))
+        seen_in_traffic = bool(raw_ep.get("seen_in_traffic", last_seen_days_ago is not None))
         if last_seen_days_ago is None:
             last_seen_days_ago = 0 if (seen_in_traffic or in_gateway) else (120 if in_repo else 0)
-        state = _infer_state(
-            raw.get("state"),
-            in_gateway=in_gateway,
-            in_repo=in_repo,
-            seen_in_traffic=seen_in_traffic,
-            last_seen_days_ago=last_seen_days_ago,
-        )
+        raw_state = raw_ep.get("state") if "state" in raw_ep else None
+        if raw_state is not None and str(raw_state).strip():
+            state = _normalise_state(str(raw_state))
+        else:
+            state = _infer_state(
+                raw_state,
+                in_gateway=in_gateway,
+                in_repo=in_repo,
+                seen_in_traffic=seen_in_traffic,
+                last_seen_days_ago=last_seen_days_ago,
+            )
         canonical = {
+            "id": endpoint_id,
             "endpoint": endpoint,
             "method": method,
             "state": state,
             "last_seen_days_ago": last_seen_days_ago,
-            "auth_present": raw.get("auth_present", False),
-            "rate_limited": raw.get("rate_limited", False),
-            "tls_enabled": raw.get("tls_enabled", True),
+            "auth_present": raw_ep.get("auth_present", False),
+            "rate_limited": raw_ep.get("rate_limited", False),
+            "tls_enabled": raw_ep.get("tls_enabled", True),
             "in_gateway": in_gateway,
-            "owasp_flags": raw.get("owasp_flags", []) or [],
-            "service_name": raw.get("service_name", "unknown"),
-            "confidence": raw.get("confidence", 0.0),
-            "technical_score": raw.get("technical_score"),
+            "owasp_flags": raw_ep.get("owasp_flags", []) or [],
+            "service_name": raw_ep.get("service_name", "unknown"),
+            "confidence": raw_ep.get("confidence", 0.0),
+            "technical_score": raw_ep.get("technical_score"),
         }
-        ui_seed = dict(raw)
-        ui_seed.setdefault("id", raw.get("id") or _api_id(method, endpoint))
+        ui_seed = dict(raw_ep)
+        ui_seed.setdefault("id", endpoint_id)
         ui_seed.setdefault("path", endpoint)
         ui_seed.setdefault("state", state)
         ui_seed.setdefault("in_repo", in_repo)
         ui_seed.setdefault("seen_in_traffic", seen_in_traffic)
         ui_seed.setdefault("auth_detected", bool(canonical["auth_present"]))
-        ui_seed.setdefault("last_seen", raw.get("last_seen") or _iso_from_days_ago(last_seen_days_ago))
+        ui_seed.setdefault("last_seen", raw_ep.get("last_seen") or _iso_from_days_ago(last_seen_days_ago))
         ui_seed.setdefault("service_name", canonical["service_name"])
         ui_seed.setdefault("owasp_flags", canonical["owasp_flags"])
         return canonical, ui_seed
 
     # Neeraj-style record
-    path = raw.get("path") or raw.get("endpoint") or ""
-    method = (raw.get("method") or "GET").upper()
-    in_gateway = bool(raw.get("in_gateway", False))
-    last_seen = raw.get("last_seen")
+    path = raw_ep.get("path") or raw_ep.get("endpoint") or ""
+    method = (raw_ep.get("method") or "GET").upper()
+    endpoint_id = raw_ep.get("id") or _api_id(method, path)
+    in_gateway = bool(raw_ep.get("in_gateway", False))
+    last_seen = raw_ep.get("last_seen")
     last_seen_days_ago = _days_ago_from_iso(last_seen)
-    in_repo = bool(raw.get("in_repo", False))
-    seen_in_traffic = bool(raw.get("seen_in_traffic", last_seen_days_ago is not None))
+    in_repo = bool(raw_ep.get("in_repo", False))
+    seen_in_traffic = bool(raw_ep.get("seen_in_traffic", last_seen_days_ago is not None))
     if last_seen_days_ago is None:
         last_seen_days_ago = 0 if (seen_in_traffic or in_gateway) else (120 if in_repo else 0)
     state = _infer_state(
-        raw.get("state"),
+        raw_ep.get("state"),
         in_gateway=in_gateway,
         in_repo=in_repo,
         seen_in_traffic=seen_in_traffic,
         last_seen_days_ago=last_seen_days_ago,
     )
     canonical = {
+        "id": endpoint_id,
         "endpoint": path,
         "method": method,
         "state": state,
         "last_seen_days_ago": last_seen_days_ago,
-        "auth_present": raw.get("auth_detected", False),
-        "rate_limited": raw.get("rate_limited", False),
-        "tls_enabled": raw.get("tls_enabled", True),
+        "auth_present": raw_ep.get("auth_detected", False),
+        "rate_limited": raw_ep.get("rate_limited", False),
+        "tls_enabled": raw_ep.get("tls_enabled", True),
         "in_gateway": in_gateway,
-        "owasp_flags": raw.get("owasp_flags", []) or [],
-        "service_name": raw.get("service_name", "unknown"),
-        "confidence": raw.get("confidence", 0.0),
-        "technical_score": raw.get("technical_score"),
+        "owasp_flags": raw_ep.get("owasp_flags", []) or [],
+        "service_name": raw_ep.get("service_name", "unknown"),
+        "confidence": raw_ep.get("confidence", 0.0),
+        "technical_score": raw_ep.get("technical_score"),
     }
-    ui_seed = dict(raw)
+    ui_seed = dict(raw_ep)
     ui_seed.setdefault("path", path)
     ui_seed.setdefault("auth_detected", canonical["auth_present"])
     ui_seed.setdefault("last_seen", last_seen or _iso_from_days_ago(last_seen_days_ago))
     ui_seed.setdefault("state", state)
-    ui_seed.setdefault("id", raw.get("id") or _api_id(method, path))
+    ui_seed.setdefault("id", endpoint_id)
     ui_seed.setdefault("service_name", canonical["service_name"])
     ui_seed.setdefault("owasp_flags", canonical["owasp_flags"])
     return canonical, ui_seed
@@ -376,8 +510,7 @@ def _enrich_for_ui(canonical: dict, ui_seed: dict, onboarding: dict, agent: dict
             "rate_limited": bool(canonical.get("rate_limited")),
             "tls_enabled": bool(canonical.get("tls_enabled")),
             "in_gateway": in_gateway,
-            "service_name": canonical.get("service_name", "unknown"),
-            "confidence": float(canonical.get("confidence") or 0.0),
+            "service_name": _normalize_service_name(canonical.get("service_name", "unknown")),
             "owasp_flags": owasp_flags,
             "risk_summary": canonical.get("risk_summary"),
             "violations": canonical.get("violations", []) or [],
@@ -385,8 +518,22 @@ def _enrich_for_ui(canonical: dict, ui_seed: dict, onboarding: dict, agent: dict
             "technical_fix": canonical.get("technical_fix"),
             "technical_score": technical_score,
             "importance_score": int(canonical.get("importance_score") or 0),
+            "base_importance_score": int(canonical.get("base_importance_score") or canonical.get("importance_score") or 0),
+            "priority_score": float(canonical.get("priority_score") or 0.0),
+            "priority_rank": canonical.get("priority_rank"),
+            "importance_reason": canonical.get("importance_reason") or [],
+            "importance_summary": canonical.get("importance_summary"),
+            "priority_reason": canonical.get("priority_reason"),
+            "priority_reason_lines": canonical.get("priority_reason_lines") or [],
+            "priority_summary": canonical.get("priority_summary"),
+            "why_this_matters": canonical.get("why_this_matters"),
+            "business_impact": canonical.get("business_impact"),
+            "business_tags": canonical.get("business_tags") or [],
+            "onboarding_context": canonical.get("onboarding_context") or {},
+            "impact_summary": canonical.get("impact_summary"),
+            "blast_radius_services": int(canonical.get("blast_radius_services") or 0),
+            "blast_radius_reason": canonical.get("blast_radius_reason"),
 
-            # UI fields (Lovable schema)
             "id": api_id,
             "path": endpoint,
             "state": state,
@@ -453,20 +600,24 @@ def get_merged_inventory() -> list[dict]:
     Merges M1's scanner output with M3's AI agent results.
     M1 provides: endpoint, state, owasp_flags, auth_present, etc.
     M3 provides: risk_summary, violations, recommended_action, technical_fix.
-    We join them on the 'endpoint' field.
+    We join them on 'id' first, then fallback to 'method+endpoint'.
     """
     scanner_data: list = _load_scanner_data()
     agent_data: list = load_json("agent_results.json", default=[])
     onboarding: dict = load_json("onboarding.json", default={})
 
-    # Index M3's data by endpoint path for fast lookup
+    # Index M3's data by id first, then method+endpoint for fast lookup
     agent_index = {}
     for item in agent_data if isinstance(agent_data, list) else []:
         if not isinstance(item, dict):
             continue
-        key = item.get("endpoint") or item.get("path")
-        if key:
-            agent_index[key] = item
+        # Primary key: id
+        if item.get("id"):
+            agent_index[item["id"]] = item
+        else:
+            # Fallback: method+endpoint key
+            method_ep_key = f"{item.get('method', '')}:{item.get('endpoint', '')}"
+            agent_index[method_ep_key] = item
 
     merged = []
     for raw_ep in scanner_data if isinstance(scanner_data, list) else []:
@@ -474,8 +625,16 @@ def get_merged_inventory() -> list[dict]:
             continue
 
         ep, ui_seed = _normalise_scanner_record(raw_ep, onboarding)
-        path = ep.get("endpoint", "")
-        agent = agent_index.get(path, {}) if isinstance(agent_index, dict) else {}
+        agent = {}
+        
+        # Try matching by id first
+        if ep.get("id"):
+            agent = agent_index.get(ep["id"], {})
+        
+        # Fallback to method+endpoint if no id match
+        if not agent:
+            method_ep_key = f"{ep.get('method', '')}:{ep.get('endpoint', '')}"
+            agent = agent_index.get(method_ep_key, {})
         # Harjot/M3 currently returns `violations` as a single string (newline-separated).
         raw_violations = agent.get("violations", [])
         if isinstance(raw_violations, str):
@@ -503,7 +662,7 @@ def get_merged_inventory() -> list[dict]:
 
         merged_ep = {
             # --- From M1 (scanner) ---
-            "endpoint": path,
+            "endpoint": ep.get("endpoint", ""),
             "method": ep.get("method", "GET"),
             "state": ep.get("state", "unknown"),
             "last_seen_days_ago": ep.get("last_seen_days_ago"),
@@ -559,16 +718,9 @@ def get_merged_inventory() -> list[dict]:
         from services.graph_builder import build_graph
 
         graph = build_graph(enriched)
-        centrality_map = {
-            svc.get("service_name"): float(svc.get("centrality_score") or 0.0)
-            for svc in (graph.get("service_context") or [])
-            if isinstance(svc, dict)
-        }
-        for ep in enriched:
-            svc = ep.get("service_name")
-            if svc in centrality_map:
-                ep["centrality_score"] = centrality_map[svc]
+        _apply_priority_context(enriched, graph, onboarding)
     except Exception:
         pass
 
+    enriched.sort(key=_priority_sort_key, reverse=True)
     return enriched

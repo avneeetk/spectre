@@ -101,6 +101,61 @@ STATE_URGENCY = {
 # Regulations that increase importance
 HIGH_REGULATION = {"pci", "hipaa", "gdpr"}
 
+REGULATION_LABELS = {
+    "pci": "PCI",
+    "hipaa": "HIPAA",
+    "gdpr": "GDPR",
+    "soc2": "SOC 2",
+    "iso27001": "ISO 27001",
+}
+
+DOMAIN_REASON_BY_KEYWORD = {
+    "payment": "Handles financial transactions",
+    "transfer": "Moves customer funds",
+    "transaction": "Processes transaction flows",
+    "account": "Touches customer accounts",
+    "auth": "Protects authentication flows",
+    "login": "Protects authentication flows",
+    "admin": "Controls administrative actions",
+    "kyc": "Handles identity verification",
+    "loan": "Supports lending workflows",
+    "billing": "Handles billing operations",
+    "subscription": "Drives subscription revenue",
+    "webhook": "Receives external integrations",
+}
+
+
+def _impact_level(score: float) -> str:
+    if score >= 85:
+        return "CRITICAL"
+    if score >= 70:
+        return "HIGH"
+    if score >= 40:
+        return "MEDIUM"
+    return "LOW"
+
+
+def _find_domain_reason(path: str) -> str | None:
+    path_lower = path.lower()
+    for keyword, reason in DOMAIN_REASON_BY_KEYWORD.items():
+        if keyword in path_lower:
+            return reason
+    return None
+
+
+def _build_business_tags(reasons: list[str], regulations: list[str], api_consumers: list[str], domain_component: float) -> list[str]:
+    tags: list[str] = []
+    if domain_component >= 0.75:
+        tags.append("Business Critical")
+    if regulations:
+        labels = [REGULATION_LABELS.get(r, str(r).upper()) for r in regulations[:2]]
+        tags.append(f"Regulated ({', '.join(labels)})")
+    if {"public_internet", "mobile_apps", "partner_apis"} & set(api_consumers):
+        tags.append("External Exposure")
+    if any("authentication" in reason.lower() or "financial" in reason.lower() for reason in reasons):
+        tags.append("Sensitive Workflow")
+    return tags[:3]
+
 
 def _get_domain_weight(path: str, system_type: str) -> float:
     """
@@ -153,8 +208,8 @@ def compute_importance_score(endpoint: dict, onboarding: dict) -> int:
     """
 
     system_type = onboarding.get("system_type", "fintech")
-    regulations = onboarding.get("regulations", [])
-    api_consumers = onboarding.get("api_consumers", [])
+    regulations = [str(r).lower() for r in onboarding.get("regulations", []) if str(r).lower() != "none"]
+    api_consumers = [str(c) for c in onboarding.get("api_consumers", [])]
 
     path = endpoint.get("endpoint", "")
     # NOTE (M4): The frontend/demo data often uses lowercase states ("zombie"),
@@ -178,6 +233,7 @@ def compute_importance_score(endpoint: dict, onboarding: dict) -> int:
 
     # --- Component 2: Domain ---
     domain_component = _get_domain_weight(path, system_type)
+    domain_reason = _find_domain_reason(path)
 
     # --- Component 3: Regulatory ---
     reg_component = 0.0
@@ -212,7 +268,36 @@ def compute_importance_score(endpoint: dict, onboarding: dict) -> int:
     # --- AI Hook (optional adjustment layer) ---
     ai_adjustment = _ai_adjustment(endpoint, onboarding)
 
-    final_score = (raw_score + ai_adjustment) * urgency * 100
+    business_score = (raw_score + ai_adjustment) * 100
+    final_score = business_score * urgency
+
+    importance_reasons: list[str] = []
+    if domain_reason and domain_component >= 0.65:
+        importance_reasons.append(domain_reason)
+
+    high_regulations = [REGULATION_LABELS.get(r, str(r).upper()) for r in regulations if r in HIGH_REGULATION]
+    if high_regulations:
+        importance_reasons.append(f"Under {' and '.join(high_regulations[:2])} compliance")
+
+    consumer_set = set(api_consumers)
+    if "partner_apis" in consumer_set:
+        importance_reasons.append("Used by external partners")
+    elif {"public_internet", "mobile_apps"} & consumer_set:
+        importance_reasons.append("Exposed to public clients")
+
+    if technical_score is not None and technical_score >= 70:
+        importance_reasons.append("High technical risk")
+
+    impact = _impact_level(final_score)
+    tags = _build_business_tags(importance_reasons, regulations, api_consumers, domain_component)
+
+    if not importance_reasons:
+        importance_reasons.append("Supports core API operations")
+
+    endpoint["importance_reason"] = importance_reasons[:4]
+    endpoint["business_impact"] = impact
+    endpoint["business_tags"] = tags
+    endpoint["importance_summary"] = "This API matters because " + "; ".join(reason.lower() for reason in importance_reasons[:3]) + "."
 
     # --- Explainability ---
     endpoint["importance_breakdown"] = {
