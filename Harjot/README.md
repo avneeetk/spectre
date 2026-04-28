@@ -18,22 +18,24 @@ The module exposes a FastAPI service that the dashboard consumes to retrieve ana
 ## Architecture
 ```
 Discovery Scanner ──┐
-├──► JSON Record ──► Agent Loop ──► Groq LLM ──► Analysis Output
-Classifier ──────────┘                       ▲
-│
-ChromaDB
-(OWASP Knowledge Base)
-│
-FastAPI Service (port 8000)
-│
-Dashboard
+├──► JSON Record ──► Agent Loop ──► Groq LLM (Llama 3) ──► Analysis Output
+Classifier ──────────┘                                  ▲
+                                                        │
+                                                    ChromaDB
+                                              (OWASP Knowledge Base)
+                                                        │
+                                              FastAPI Service (port 8000)
+                                                        │
+                                                    Dashboard
 ```
 
-The agent loop runs three focused LLM calls per endpoint:
-1. **Risk reasoning** : plain English explanation of why the endpoint is dangerous
-2. **Violation breakdown** : one line per OWASP flag explaining what is specifically wrong
-3. **Technical fix** : Nginx config, gateway registration template, or hardening steps depending on the endpoint state
+The agent loop runs at most two LLM calls per endpoint:
+1. **Risk summary + violations** : plain English risk explanation and a one-line breakdown per OWASP flag, generated in a single call
+2. **Technical fix** : Nginx config, gateway registration template, or hardening steps depending on the endpoint state
 
+Active endpoints with no violations skip the second call entirely. Repeat requests for the same record skip both calls and are served from cache.
+
+---
 
 ## Tech Stack
 
@@ -67,7 +69,7 @@ spectre-ai/
 │   └── agent_loop.py           # Multi-step agent - main logic
 │
 ├── api/
-│   ├── init.py
+│   ├── __init__.py
 │   └── routes.py               # FastAPI route definitions
 │
 ├── .env                        # API keys (never committed)
@@ -76,14 +78,15 @@ spectre-ai/
 ├── requirements.txt
 └── README.md
 ```
+
 ---
 
 ## How the Agent Loop Works
 
-Each API record goes through six steps inside `agent/agent_loop.py`:
+Each API record goes through five steps inside `agent/agent_loop.py`:
 
 **Step 1 — Severity classification (pure logic, no LLM)**  
-Deterministic rules assign Critical / High / Medium / Low based on state, auth presence, and number of OWASP flags. No AI is used here — the result must be explainable and consistent.
+Deterministic rules assign Critical / High / Medium / Low based on state, auth presence, TLS status, and number of OWASP flags. No AI is used here — the result must be explainable and consistent.
 
 **Step 2 — Action type decision**  
 Based on the endpoint state, the agent decides what kind of output to generate:
@@ -91,17 +94,34 @@ Based on the endpoint state, the agent decides what kind of output to generate:
 - Shadow → `register` (gateway registration template)
 - Active → `harden` (specific fixes for each violation)
 
-**Step 3 — RAG retrieval**  
-The OWASP flags for the endpoint are used to fetch matching documentation chunks from ChromaDB. This context is injected into every LLM prompt so the AI reasons from the actual OWASP standard, not general knowledge.
+**Step 3 — RAG retrieval (cached)**  
+The OWASP flags for the endpoint are used to fetch matching documentation from ChromaDB. This context is injected into the LLM prompt so the model reasons from the actual OWASP standard, not general knowledge. Results are cached by flag set — if multiple endpoints in a batch share the same flags, ChromaDB is only queried once. Skipped entirely when an endpoint has no flags.
 
-**Step 4 — Risk summary (LLM call 1)**  
-A focused prompt generates a 2–3 sentence plain English explanation specific to this endpoint — its state, how long it has been inactive, and the biggest risk if exploited.
+**Step 4 — Risk summary + violations (LLM call 1)**  
+A single prompt generates both the plain English risk explanation and the one-line violation breakdown per flag. Both outputs need the same context, so they are produced together in one call and parsed into separate fields.
 
-**Step 5 — Violations breakdown (LLM call 2)**  
-A separate focused prompt generates one line per OWASP flag explaining exactly what is wrong with this specific endpoint.
+**Step 5 — Technical fix (LLM call 2)**  
+A second prompt generates the remediation output — either an Nginx 410 config with a deprecation notice, a JSON gateway registration template, or specific hardening instructions with code examples. Skipped entirely for Active endpoints with no violations — a static response is returned instead.
 
-**Step 6 — Technical fix (LLM call 3)**  
-A third prompt generates the remediation output — either an Nginx 410 config with a deprecation notice, a JSON gateway registration template, or specific hardening instructions with code examples.
+---
+
+## LLM Call Budget
+
+| Endpoint type | LLM calls |
+|---|---|
+| Any endpoint with flags | 2 |
+| Active, no violations | 1 |
+| Repeat request for same record | 0 |
+
+---
+
+## Caching Strategy
+
+The pipeline uses two independent caches to avoid redundant work:
+
+**Result cache** — every completed analysis is stored in memory, keyed by a hash of the input record. If the same endpoint record comes in again during the same server session (for example from a dashboard refresh), the entire pipeline is skipped and the stored result is returned immediately. Resets on server restart.
+
+**RAG cache** — OWASP context lookups from ChromaDB are cached by flag set. Flags are sorted before caching so `["API2", "API4"]` and `["API4", "API2"]` always resolve to the same entry. In a batch of 8 endpoints where several share common flag combinations, ChromaDB may only be queried 4-5 times instead of 8.
 
 ---
 
@@ -162,6 +182,13 @@ Analyze a single API endpoint.
 
 ### `POST /analyze/batch`
 Analyze multiple endpoints in one request. Accepts a list of the same record format as `/analyze`.
+
+> **Note:** Swagger UI generates a single-item example by default. To test all endpoints at once, edit the request body manually or use curl:
+> ```bash
+> curl -X POST http://localhost:8000/analyze/batch \
+>   -H "Content-Type: application/json" \
+>   -d @data/mock_apis.json
+> ```
 
 **Response:**
 ```json
@@ -273,9 +300,9 @@ curl http://localhost:8000/decommission-queue
 
 ## CONTRIBUTORS
 
-| Workflow| Name | Role |
+| Workflow | Name | Role |
 |---|---|---|
-| Member 1 |**Neeraj Gandhi**| Discovery engine and scanning |
-| Member 2 |**Gurleen Kaur**| Classification and OWASP checker |
-| Member 3 |**Harjot Kaur**| Agentic AI layer |
-| Member 4 |**Avneet Kaur**| Dashboard and DevOps |
+| Member 1 | **Neeraj Gandhi** | Discovery engine and scanning |
+| Member 2 | **Gurleen Kaur** | Classification and OWASP checker |
+| Member 3 | **Harjot Kaur** | Agentic AI layer |
+| Member 4 | **Avneet Kaur** | Dashboard and DevOps |
