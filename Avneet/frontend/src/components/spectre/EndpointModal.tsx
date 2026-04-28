@@ -101,6 +101,18 @@ const AIInsightPanel = ({
   );
 };
 
+const getViolations = (api: ApiEndpointUI) => {
+  const raw = api.violations;
+  if (Array.isArray(raw)) return raw.filter(Boolean);
+  if (typeof raw === "string") {
+    return raw
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line && line.toLowerCase() !== "none");
+  }
+  return [];
+};
+
 const EndpointModal = ({ api, serviceContext, decommQueue, onClose, onAddToDecomm, onMarkReviewed }: EndpointModalProps) => {
   const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState<"summary" | "classifier" | "agent" | "evidence">("summary");
@@ -109,6 +121,9 @@ const EndpointModal = ({ api, serviceContext, decommQueue, onClose, onAddToDecom
   const serviceCtx = serviceContext.find((s) => s.service_name === api.service_name);
   const isAtRisk = api.state !== "active";
   const hasMitigation = api.mitigation_steps && api.mitigation_steps.length > 0;
+  const violations = getViolations(api);
+  const hasTechnicalFix = Boolean(api.technical_fix);
+  const hasAgentResponse = isAtRisk && (hasMitigation || hasTechnicalFix || violations.length > 0 || Boolean(api.mitigation_recommendation));
   const reasoningTags = getReasoningTags(api, serviceCtx);
 
   const chartColors = {
@@ -118,23 +133,35 @@ const EndpointModal = ({ api, serviceContext, decommQueue, onClose, onAddToDecom
 
   useEffect(() => {
     if (typeof document === "undefined") return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
     return () => {
-      document.body.style.overflow = previousOverflow;
     };
   }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
 
   useEffect(() => {
     setActiveTab("summary");
   }, [api.id]);
 
   return (
-    <>
-      <div className={`fixed inset-0 z-40 ${theme === "dark" ? "bg-black/70" : "bg-black/55"}`} onClick={onClose} />
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="flex min-h-0 w-full max-w-[860px] max-h-[78vh] flex-col overflow-hidden rounded-[16px] border border-border bg-card animate-spectre-scale-in shadow-2xl" style={{ borderRadius: 16 }}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className={`absolute inset-0 ${theme === "dark" ? "bg-black/70" : "bg-black/55"}`} onClick={onClose} />
+      <div
+        className="relative z-10 flex w-full max-w-[860px] max-h-[90vh] flex-col overflow-hidden rounded-[16px] border border-border bg-card shadow-2xl animate-spectre-scale-in"
+        style={{ borderRadius: 16 }}
+        onClick={(event) => event.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+      >
           {/* Header */}
           <div className="border-b border-border bg-card px-5 py-4">
             <div className="flex items-start justify-between">
@@ -182,7 +209,7 @@ const EndpointModal = ({ api, serviceContext, decommQueue, onClose, onAddToDecom
             </div>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
+          <div className="flex-1 overflow-y-auto px-5 py-5" style={{ maxHeight: 'calc(90vh - 180px)' }}>
             {activeTab === "summary" && (
               <div className="space-y-5">
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -226,7 +253,7 @@ const EndpointModal = ({ api, serviceContext, decommQueue, onClose, onAddToDecom
                       </span>
                     ))}
                     <span className="rounded-full border border-border bg-background/80 px-2.5 py-1 text-[10px] text-muted-foreground">
-                      {api.blast_radius_reason || `High blast radius — affects ${serviceCtx?.dependent_services.length || 0} services`}
+                      {api.blast_radius_reason || `High blast radius - affects ${serviceCtx?.dependent_services.length || 0} services`}
                     </span>
                   </div>
                   <div className="mt-3 grid grid-cols-1 gap-2 text-[10px] text-muted-foreground sm:grid-cols-3">
@@ -272,7 +299,7 @@ const EndpointModal = ({ api, serviceContext, decommQueue, onClose, onAddToDecom
                     <div className="rounded-lg border border-border bg-background p-3">
                       <div className="text-[10px] text-muted-foreground mb-1">M2 risk score</div>
                       <div className="text-sm font-medium text-foreground tabular-nums">
-                        {api.m2_risk_score != null ? api.m2_risk_score.toFixed(2) : "—"}
+                        {api.m2_risk_score != null ? api.m2_risk_score.toFixed(2) : "-"}
                       </div>
                       {api.m2_data_sensitivity && (
                         <div className="mt-1 text-[10px] text-muted-foreground">
@@ -289,7 +316,7 @@ const EndpointModal = ({ api, serviceContext, decommQueue, onClose, onAddToDecom
                           ))}
                         </ul>
                       ) : (
-                        <div className="text-[11px] text-muted-foreground">—</div>
+                        <div className="text-[11px] text-muted-foreground">-</div>
                       )}
                     </div>
                   </div>
@@ -329,20 +356,48 @@ const EndpointModal = ({ api, serviceContext, decommQueue, onClose, onAddToDecom
 
             {activeTab === "agent" && (
               <div className="space-y-5">
-                {isAtRisk && hasMitigation ? (
+                {hasAgentResponse ? (
                   <div>
                     <h3 className="mb-3 text-[11px] font-medium text-muted-foreground uppercase tracking-wider">AI Layer analysis</h3>
-                    <div className="space-y-2">
-                      {(api.mitigation_steps || []).map((step) => (
-                        <div key={step.step} className="flex gap-3 text-xs">
-                          <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#E24B4A]/10 text-[10px] font-medium text-[#E24B4A]">{step.step}</div>
-                          <div>
-                            <div className="text-foreground">{step.action}</div>
-                            <div className="text-[10px] text-muted-foreground">{step.finding}</div>
-                          </div>
+
+                    {hasTechnicalFix && (
+                      <div className="mb-4 rounded-lg border border-border bg-background p-3">
+                        <div className="mb-2 text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Technical fix</div>
+                        <pre className="whitespace-pre-wrap break-words rounded bg-muted/30 p-2 font-mono text-[11px] text-muted-foreground max-h-96 overflow-y-auto">
+                          {api.technical_fix}
+                        </pre>
+                      </div>
+                    )}
+
+                    {violations.length > 0 && (
+                      <div className="mb-4 rounded-lg border border-border bg-background p-3">
+                        <div className="mb-2 text-[11px] font-medium text-muted-foreground uppercase tracking-wider">OWASP Violations</div>
+                        <div className="space-y-1">
+                          {violations.map((violation, index) => (
+                            <div key={index} className="flex items-start gap-2 text-xs">
+                              <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#E24B4A]/10 text-[10px] font-medium text-[#E24B4A]">{index + 1}</div>
+                              <div className="text-foreground">{violation}</div>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
+                      </div>
+                    )}
+
+                    {hasMitigation && (
+                      <div className="space-y-2">
+                        {(api.mitigation_steps || []).map((step) => (
+                          <div key={step.step} className="flex gap-3 text-xs">
+                            <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#E24B4A]/10 text-[10px] font-medium text-[#E24B4A]">{step.step}</div>
+                            <div>
+                              <div className="text-foreground">{step.action}</div>
+                              {step.finding && (
+                                <div className="text-[10px] text-muted-foreground">{step.finding}</div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     {api.mitigation_recommendation && (
                       <div className={`mt-3 rounded-lg border-l-2 p-3 ${
                         api.mitigation_recommendation.includes("Block") ? "border-l-spectre-zombie bg-spectre-zombie-bg/30" : "border-l-spectre-active bg-spectre-active-bg/30"
@@ -364,15 +419,6 @@ const EndpointModal = ({ api, serviceContext, decommQueue, onClose, onAddToDecom
                 ) : (
                   <div className="rounded-xl border border-dashed border-border px-3 py-8 text-center text-[11px] text-muted-foreground">
                     No mitigation workflow was generated for this endpoint.
-                  </div>
-                )}
-
-                {api.technical_fix && (
-                  <div className="rounded-lg border border-border bg-background p-3">
-                    <div className="mb-2 text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Technical fix</div>
-                    <pre className="whitespace-pre-wrap break-words rounded bg-muted/30 p-2 font-mono text-[11px] text-muted-foreground">
-                      {api.technical_fix}
-                    </pre>
                   </div>
                 )}
               </div>
@@ -452,8 +498,7 @@ const EndpointModal = ({ api, serviceContext, decommQueue, onClose, onAddToDecom
             </div>
           </div>
         </div>
-      </div>
-    </>
+    </div>
   );
 };
 

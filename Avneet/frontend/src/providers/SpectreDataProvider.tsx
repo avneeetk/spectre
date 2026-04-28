@@ -66,7 +66,13 @@ function normalizeOnboarding(data: Record<string, unknown> | OnboardingAnswers):
 function buildImportanceQueue(inventoryRecords: ApiEndpointUI[]): DecommissionQueueItem[] {
   const now = new Date().toISOString();
   return inventoryRecords
-    .filter((ep) => (ep.importance_score || 0) >= 70)
+    .filter((ep) => {
+      const importanceScore = ep.importance_score || 0;
+      const hasAgentFix = Boolean(ep.technical_fix || ep.recommended_action);
+      const hasFindings = Boolean((ep.owasp_flags || []).length || ep.violations);
+      const riskyState = ["rogue", "shadow", "zombie"].includes(ep.state);
+      return importanceScore >= 70 || (hasAgentFix && (hasFindings || riskyState));
+    })
     .sort((a, b) => (b.priority_score || b.importance_score || 0) - (a.priority_score || a.importance_score || 0))
     .map((ep) => ({
       api_id: String(ep.id || ep.path || ""),

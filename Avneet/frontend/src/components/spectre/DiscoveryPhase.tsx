@@ -137,6 +137,7 @@ const DiscoveryPhase = ({ onComplete }: DiscoveryPhaseProps) => {
     <div className="min-h-screen animate-spectre-fade-in">
       <NavBar />
       <PhaseIndicator currentPhase={1} />
+      
       <div className="mx-auto flex max-w-6xl gap-6 px-6">
         <div className="w-[58%]">
           <div className="mb-5">
@@ -181,7 +182,7 @@ const DiscoveryPhase = ({ onComplete }: DiscoveryPhaseProps) => {
           </div>
 
           {hasData && (
-            <div className="mt-5 text-center animate-spectre-fade-in">
+            <div className="mt-20 text-center animate-spectre-fade-in">
               <button
                 onClick={onComplete}
                 disabled={loading}

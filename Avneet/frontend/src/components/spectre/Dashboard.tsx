@@ -25,10 +25,43 @@ type Insight = {
 
 const statePriority: Record<string, number> = { rogue: 120, shadow: 95, zombie: 85, active: 10 };
 const stateOrder = ["rogue", "zombie", "shadow", "active"];
+const MOCK_ENV_LABEL = SCAN_CONFIG.environment_name;
 
 const truncate = (text: string | null | undefined, length = 118) => {
   if (!text) return "AI found no critical narrative for this endpoint.";
   return text.length > length ? `${text.slice(0, length)}…` : text;
+};
+
+const normalizeLiveLabel = (value?: string | null) => {
+  const trimmed = value?.trim();
+  if (!trimmed || trimmed === MOCK_ENV_LABEL) return null;
+  return trimmed;
+};
+
+const getRepoLabel = (repoUrl?: string | null) => {
+  const cleaned = normalizeLiveLabel(repoUrl);
+  if (!cleaned) return null;
+
+  try {
+    const url = new URL(cleaned);
+    const parts = url.pathname.split("/").filter(Boolean);
+    if (parts.length >= 2) return `${parts[parts.length - 2]}/${parts[parts.length - 1]}`;
+  } catch {
+    const parts = cleaned.replace(/\/+$/, "").split("/").filter(Boolean);
+    if (parts.length >= 2) return `${parts[parts.length - 2]}/${parts[parts.length - 1]}`;
+  }
+
+  return cleaned;
+};
+
+const formatSystemType = (systemType?: string | null) => {
+  const cleaned = normalizeLiveLabel(systemType);
+  if (!cleaned) return null;
+  return cleaned
+    .split(/[_-\s]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 };
 
 const getRiskScore = (api: Api) => {
@@ -57,11 +90,30 @@ const getScoreBar = (score: number) => {
   return "bg-spectre-active";
 };
 
-const getRecommendationLabel = (api: Api) => {
-  if (api.state === "rogue") return "Secure / block now";
-  if (api.state === "shadow") return "Investigate origin";
-  if (api.state === "zombie") return api.importance_score > 70 ? "Review then remove" : "Remove";
-  return "Monitor";
+const getViolations = (api: Api) => {
+  const raw = api.violations;
+  if (Array.isArray(raw)) return raw.filter(Boolean);
+  if (typeof raw === "string") {
+    return raw
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line && line.toLowerCase() !== "none");
+  }
+  return [];
+};
+
+const getTechnicalFixCopy = (api: Api) => (
+  api.technical_fix ||
+  api.ai_next_step ||
+  api.mitigation_recommendation ||
+  "No technical fix was generated for this endpoint yet."
+);
+
+const getAgentBadge = (api: Api) => {
+  const violationCount = getViolations(api).length;
+  if (violationCount > 0) return `${violationCount} violation${violationCount === 1 ? "" : "s"}`;
+  if (api.technical_fix) return "Technical fix ready";
+  return "Needs review";
 };
 
 const getConfidenceLabel = (api: Api) => {
@@ -81,28 +133,16 @@ const formatTimeAgo = (dateStr?: string | null) => {
 
 const Dashboard = ({ onNewScan }: DashboardProps) => {
   const { theme, toggleTheme } = useTheme();
-  const { inventory, decommissionQueue: initialQueue, serviceContext, resolvedMode, loading, error, refresh } = useSpectreData();
+  const { inventory, decommissionQueue: initialQueue, serviceContext, resolvedMode, loading, error, refresh, graph, onboarding } = useSpectreData();
   const [selectedApiId, setSelectedApiId] = useState<string | null>(null);
   const [modalApiId, setModalApiId] = useState<string | null>(null);
   const [decommQueue, setDecommQueue] = useState<DecommissionQueueItem[]>([]);
   const [activeTab, setActiveTab] = useState<"inventory" | "graph">("inventory");
-  const [inventoryOpen, setInventoryOpen] = useState(false);
   const [focusInsight, setFocusInsight] = useState<string | null>(null);
-  const [envLabel, setEnvLabel] = useState<string>(SCAN_CONFIG.environment_name);
 
   useEffect(() => {
     setDecommQueue((initialQueue || []).map((item) => ({ ...item })));
   }, [initialQueue]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (resolvedMode !== "live") {
-      setEnvLabel(SCAN_CONFIG.environment_name);
-      return;
-    }
-    const stored = window.localStorage.getItem("spectre_env_name") || window.localStorage.getItem("spectre_repo_url");
-    setEnvLabel(stored || "Live scan");
-  }, [resolvedMode]);
 
   useEffect(() => {
     if (!inventory.length) {
@@ -162,14 +202,34 @@ const Dashboard = ({ onNewScan }: DashboardProps) => {
 
   const alerts = useMemo(() => prioritizedApis.filter((api) => api.state !== "active").slice(0, 5), [prioritizedApis]);
 
-  // Check for incomplete discovery paths
-  const incompleteDiscovery = useMemo(() => {
-    const barePaths = inventory.filter(api => {
-      const path = api.path || api.endpoint;
-      return path && ['/', '/me', '/{id}', '/health'].includes(path);
-    });
-    return barePaths.length > 0;
-  }, [inventory]);
+  const envLabel = useMemo(() => {
+    if (resolvedMode !== "live") return MOCK_ENV_LABEL;
+
+    const storedEnv = typeof window !== "undefined"
+      ? normalizeLiveLabel(window.localStorage.getItem("spectre_env_name"))
+      : null;
+    if (storedEnv) return storedEnv;
+
+    const storedRepo = typeof window !== "undefined"
+      ? getRepoLabel(window.localStorage.getItem("spectre_repo_url"))
+      : null;
+    if (storedRepo) return storedRepo;
+
+    const graphSummary = graph?.summary && typeof graph.summary === "object"
+      ? graph.summary as Record<string, unknown>
+      : null;
+    const mostCentralService = normalizeLiveLabel(
+      typeof graphSummary?.most_central === "string" ? graphSummary.most_central : null
+    );
+    if (mostCentralService) return mostCentralService;
+
+    const onboardingRecord = onboarding as Record<string, unknown>;
+    const systemType = formatSystemType(typeof onboardingRecord?.system_type === "string" ? onboardingRecord.system_type : null);
+    if (systemType) return `${systemType} environment`;
+
+    const serviceName = normalizeLiveLabel(serviceContext[0]?.service_name || inventory[0]?.service_name || null);
+    return serviceName || "Live scan";
+  }, [graph, inventory, onboarding, resolvedMode, serviceContext]);
 
   const actionItems = useMemo(() => {
     return decommQueue
@@ -250,6 +310,7 @@ const Dashboard = ({ onNewScan }: DashboardProps) => {
         </nav>
         <KnowledgeGraphTab
           apis={inventory}
+          graph={graph}
           serviceContext={serviceContext}
           onSelectApi={(id) => {
             setSelectedApiId(id);
@@ -308,35 +369,37 @@ const Dashboard = ({ onNewScan }: DashboardProps) => {
   }
 
   return (
-    <div className="min-h-screen animate-spectre-fade-in bg-background">
-      <nav className="flex items-center justify-between border-b border-border px-6 py-3">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground text-[10px] font-medium">SP</div>
-          <span className="text-sm font-medium text-foreground tracking-tight">SPECTRE</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <button className="rounded-lg bg-muted px-3 py-1.5 text-xs font-medium text-foreground">Command center</button>
-          <button onClick={() => setActiveTab("graph")} className="rounded-lg px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground">Knowledge graph</button>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5">
-            <div className={`h-1.5 w-1.5 rounded-full ${resolvedMode === "live" && !error ? "bg-spectre-active animate-spectre-pulse" : "bg-spectre-rogue"}`} />
-            <span className="text-[11px] text-muted-foreground">{resolvedMode === "live" ? (error ? "Live (error)" : "Live") : "Demo"}</span>
+    <div className="flex min-h-screen animate-spectre-fade-in bg-background">
+      <div className="flex min-h-screen w-full flex-col">
+        <nav className="flex items-center justify-between border-b border-border px-6 py-3">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground text-[10px] font-medium">SP</div>
+            <span className="text-sm font-medium text-foreground tracking-tight">SPECTRE</span>
           </div>
-          <div className="rounded-full border border-border px-3 py-1 text-[11px] text-muted-foreground">{envLabel}</div>
-          <button onClick={toggleTheme} className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:text-foreground">
-            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-          </button>
-          <button onClick={() => refresh()} className="rounded-lg border border-border px-3 py-1.5 text-xs text-foreground transition-colors hover:bg-muted">
-            Refresh
-          </button>
-          <button onClick={onNewScan} className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs text-foreground transition-colors hover:bg-muted">
-            <RotateCcw className="h-3 w-3" /> New scan
-          </button>
-        </div>
-      </nav>
+          <div className="flex items-center gap-1.5">
+            <button className="rounded-lg bg-muted px-3 py-1.5 text-xs font-medium text-foreground">Command center</button>
+            <button onClick={() => setActiveTab("graph")} className="rounded-lg px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground">Knowledge graph</button>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              <div className={`h-1.5 w-1.5 rounded-full ${resolvedMode === "live" && !error ? "bg-spectre-active animate-spectre-pulse" : "bg-spectre-rogue"}`} />
+              <span className="text-[11px] text-muted-foreground">{resolvedMode === "live" ? (error ? "Live (error)" : "Live") : "Demo"}</span>
+            </div>
+            <div className="rounded-full border border-border px-3 py-1 text-[11px] text-muted-foreground">{envLabel}</div>
+            <button onClick={toggleTheme} className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:text-foreground">
+              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </button>
+            <button onClick={() => refresh()} className="rounded-lg border border-border px-3 py-1.5 text-xs text-foreground transition-colors hover:bg-muted">
+              Refresh
+            </button>
+            <button onClick={onNewScan} className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs text-foreground transition-colors hover:bg-muted">
+              <RotateCcw className="h-3 w-3" /> New scan
+            </button>
+          </div>
+        </nav>
 
-      <main className="mx-auto max-w-[1480px] space-y-4 p-5">
+        <main className="flex-1 overflow-y-auto">
+          <div className="mx-auto max-w-[1480px] space-y-4 p-5">
         {error && (
           <div className="rounded-xl border border-spectre-rogue/20 bg-spectre-rogue-bg/40 px-4 py-3 text-sm text-spectre-rogue">
             Live data is partially unavailable: {error}
@@ -356,7 +419,7 @@ const Dashboard = ({ onNewScan }: DashboardProps) => {
                 <ShieldAlert className="h-4 w-4 text-primary" />
                 Critical decision
               </div>
-              <span className="rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-[10px] font-medium text-primary">{getRecommendationLabel(topRisk)}</span>
+              <span className="rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-[10px] font-medium text-primary">{getAgentBadge(topRisk)}</span>
             </div>
             <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
               <div className="min-w-0">
@@ -450,7 +513,7 @@ const Dashboard = ({ onNewScan }: DashboardProps) => {
             </div>
           </div>
 
-          <div className="rounded-xl border border-border bg-card p-4">
+          <div className="flex h-full min-h-0 flex-col rounded-xl border border-border bg-card p-4">
             <div className="mb-4 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Brain className="h-4 w-4 text-primary" />
@@ -461,44 +524,66 @@ const Dashboard = ({ onNewScan }: DashboardProps) => {
               </button>
             </div>
 
-            <div className="rounded-lg border border-border bg-background p-4">
-              <div className="mb-3 flex flex-wrap items-center gap-2">
-                <MethodBadge method={selectedApi.method} />
-                <code className="font-mono text-sm text-foreground">{selectedApi.path}</code>
-                <StateBadge state={selectedApi.state} />
-              </div>
-              <p className="text-sm leading-6 text-foreground">{truncate(selectedApi.ai_summary, 260)}</p>
-              <div className="mt-3 rounded-lg border-l-2 border-l-primary bg-muted/40 p-3">
-                <div className="mb-1 text-[11px] font-medium text-foreground">Recommended action</div>
-                <p className="text-xs leading-5 text-muted-foreground">{selectedApi.ai_next_step || getRecommendationLabel(selectedApi)}</p>
-              </div>
-              <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
-                <div className="rounded-lg border border-border bg-card p-2">
-                  <div className="text-[10px] text-muted-foreground">Importance</div>
-                  <div className={`font-medium tabular-nums ${getScoreTone(selectedApi.importance_score)}`}>{selectedApi.importance_score}</div>
+            <div className="min-h-0 max-h-[520px] space-y-4 overflow-y-auto pr-1">
+              <div className="rounded-lg border border-border bg-background p-4">
+                <div className="mb-3 flex flex-wrap items-center gap-2">
+                  <MethodBadge method={selectedApi.method} />
+                  <code className="font-mono text-sm text-foreground">{selectedApi.path}</code>
+                  <StateBadge state={selectedApi.state} />
                 </div>
-                <div className="rounded-lg border border-border bg-card p-2">
-                  <div className="text-[10px] text-muted-foreground">OWASP flags</div>
-                  <div className="font-medium tabular-nums text-foreground">{selectedApi.owasp_flags.length}</div>
+                <p className="text-sm leading-6 text-foreground">{truncate(selectedApi.ai_summary, 260)}</p>
+                <div className="mt-3 rounded-lg border-l-2 border-l-primary bg-muted/40 p-3">
+                  <div className="mb-1 text-[11px] font-medium text-foreground">Technical fix</div>
+                  <p className="whitespace-pre-wrap break-words text-xs leading-5 text-muted-foreground">{truncate(getTechnicalFixCopy(selectedApi), 220)}</p>
                 </div>
-                <div className="rounded-lg border border-border bg-card p-2">
-                  <div className="text-[10px] text-muted-foreground">Confidence</div>
-                  <div className="font-medium text-foreground">{getConfidenceLabel(selectedApi)}</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-4 grid grid-cols-1 gap-2 md:grid-cols-3">
-              {insights.map((insight) => (
-                <button key={insight.id} onClick={() => handleViewAffected(insight)} className="rounded-lg border border-border bg-background p-3 text-left transition-all hover:-translate-y-0.5 hover:bg-muted/30">
-                  <div className="mb-2 flex items-center justify-between">
-                    <span className="text-[11px] font-medium leading-4 text-foreground">{insight.title}</span>
-                    <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">{insight.apis.length}</span>
+                <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+                  <div className="rounded-lg border border-border bg-card p-2">
+                    <div className="text-[10px] text-muted-foreground">Importance</div>
+                    <div className={`font-medium tabular-nums ${getScoreTone(selectedApi.importance_score)}`}>{selectedApi.importance_score}</div>
                   </div>
-                  <p className="line-clamp-3 text-[10px] leading-4 text-muted-foreground">{insight.explanation}</p>
-                  <div className="mt-2 text-[10px] text-primary">View affected APIs</div>
-                </button>
-              ))}
+                  <div className="rounded-lg border border-border bg-card p-2">
+                    <div className="text-[10px] text-muted-foreground">OWASP flags</div>
+                    <div className="font-medium tabular-nums text-foreground">{selectedApi.owasp_flags.length}</div>
+                  </div>
+                  <div className="rounded-lg border border-border bg-card p-2">
+                    <div className="text-[10px] text-muted-foreground">Confidence</div>
+                    <div className="font-medium text-foreground">{getConfidenceLabel(selectedApi)}</div>
+                  </div>
+                </div>
+                {getViolations(selectedApi).length > 0 && (
+                  <div className="mt-3 rounded-lg border border-border bg-card p-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Violations</div>
+                      <span className="rounded-full bg-spectre-zombie-bg px-2 py-0.5 text-[10px] text-spectre-zombie">
+                        {getViolations(selectedApi).length}
+                      </span>
+                    </div>
+                    <div className="space-y-1.5">
+                      {getViolations(selectedApi).slice(0, 3).map((violation, index) => (
+                        <div key={`${selectedApi.id}-${index}`} className="flex items-start gap-2 text-[11px] text-muted-foreground">
+                          <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-spectre-zombie-bg text-[9px] font-medium text-spectre-zombie">
+                            {index + 1}
+                          </span>
+                          <span className="line-clamp-2">{violation}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
+                {insights.map((insight) => (
+                  <button key={insight.id} onClick={() => handleViewAffected(insight)} className="rounded-lg border border-border bg-background p-3 text-left transition-all hover:-translate-y-0.5 hover:bg-muted/30">
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="text-[11px] font-medium leading-4 text-foreground">{insight.title}</span>
+                      <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">{insight.apis.length}</span>
+                    </div>
+                    <p className="line-clamp-3 text-[10px] leading-4 text-muted-foreground">{insight.explanation}</p>
+                    <div className="mt-2 text-[10px] text-primary">View affected APIs</div>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -529,7 +614,7 @@ const Dashboard = ({ onNewScan }: DashboardProps) => {
             <div className="rounded-xl border border-border bg-card p-4">
               <div className="mb-3 flex items-center gap-2">
                 <Target className="h-4 w-4 text-primary" />
-                <h2 className="text-sm font-medium text-foreground">Recommended Actions</h2>
+                <h2 className="text-sm font-medium text-foreground">Technical Fix Queue</h2>
               </div>
               <div className="max-h-[244px] space-y-2 overflow-y-auto pr-1">
                 {actionItems.map((item) => {
@@ -541,10 +626,10 @@ const Dashboard = ({ onNewScan }: DashboardProps) => {
                         <code className="truncate font-mono text-[11px] text-foreground">{api.path}</code>
                         <StateBadge state={api.state} />
                       </div>
-                      <div className="mb-2 rounded-md bg-muted/50 p-2 text-[10px] leading-4 text-muted-foreground">AI recommends: {truncate(api.ai_next_step, 112)}</div>
+                      <div className="mb-2 rounded-md bg-muted/50 p-2 text-[10px] leading-4 text-muted-foreground">Technical fix: {truncate(getTechnicalFixCopy(api), 112)}</div>
                       <div className="mb-2 flex items-center justify-between text-[10px]">
                         <span className="text-muted-foreground">Confidence: <span className="text-foreground">{getConfidenceLabel(api)}</span></span>
-                        <span className="text-primary">{getRecommendationLabel(api)}</span>
+                        <span className="text-primary">{getAgentBadge(api)}</span>
                       </div>
                       {!approved && (
                         <div className="flex gap-1.5">
@@ -571,7 +656,7 @@ const Dashboard = ({ onNewScan }: DashboardProps) => {
               <button onClick={() => setActiveTab("graph")} className="text-[11px] text-muted-foreground hover:text-foreground">View full graph →</button>
             </div>
             <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.15fr_0.85fr]">
-              <KnowledgeGraphPreview apis={inventory} serviceContext={serviceContext} />
+              <KnowledgeGraphPreview graph={graph} />
               <div className="rounded-lg border border-border bg-background p-3">
                 <div className="mb-2 text-[11px] text-muted-foreground">Selected service</div>
                 <div className="mb-1 text-sm font-medium text-foreground">{selectedApi.service_name}</div>
@@ -587,15 +672,12 @@ const Dashboard = ({ onNewScan }: DashboardProps) => {
           </div>
 
           <div className="rounded-xl border border-border bg-card">
-            <button onClick={() => setInventoryOpen((open) => !open)} className="flex w-full items-center justify-between p-4 text-left">
+            <div className="p-4">
               <div>
-                <h2 className="text-sm font-medium text-foreground">Full API Inventory</h2>
+                <h2 className="text-sm font-medium text-foreground mb-2">Full API Inventory</h2>
                 <p className="text-[11px] text-muted-foreground">Secondary table view with AI summaries and high-risk row highlighting.</p>
               </div>
-              {inventoryOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-            </button>
-            <div className={`overflow-hidden transition-all duration-300 ${inventoryOpen ? "max-h-[360px] border-t border-border" : "max-h-0"}`}>
-              <div className="max-h-[340px] overflow-auto">
+              <div className="max-h-[360px] overflow-auto">
                 <table className="w-full text-[11px]">
                   <thead className="sticky top-0 z-10 bg-card">
                     <tr className="border-b border-border">
@@ -628,7 +710,9 @@ const Dashboard = ({ onNewScan }: DashboardProps) => {
             </div>
           </div>
         </section>
-      </main>
+          </div>
+        </main>
+      </div>
 
       {modalApi && (
         <EndpointModal

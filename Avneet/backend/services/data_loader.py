@@ -516,6 +516,10 @@ def _enrich_for_ui(canonical: dict, ui_seed: dict, onboarding: dict, agent: dict
             "violations": canonical.get("violations", []) or [],
             "recommended_action": canonical.get("recommended_action"),
             "technical_fix": canonical.get("technical_fix"),
+            # Transform M3 output for frontend compatibility
+            "mitigation_steps": _parse_mitigation_steps(canonical.get("violations")),
+            "mitigation_recommendation": _parse_mitigation_recommendation(canonical.get("risk_summary"), canonical.get("state")),
+            "mitigation_confidence": _parse_mitigation_confidence(canonical.get("state")),
             "technical_score": technical_score,
             "importance_score": int(canonical.get("importance_score") or 0),
             "base_importance_score": int(canonical.get("base_importance_score") or canonical.get("importance_score") or 0),
@@ -599,20 +603,15 @@ def get_merged_inventory() -> list[dict]:
     """
     Merges M1's scanner output with M3's AI agent results.
     M1 provides: endpoint, state, owasp_flags, auth_present, etc.
-    M3 provides: risk_summary, violations, recommended_action, technical_fix.
-    We join them on 'id' first, then fallback to 'method+endpoint'.
     """
-    scanner_data: list = _load_scanner_data()
-    agent_data: list = load_json("agent_results.json", default=[])
-    onboarding: dict = load_json("onboarding.json", default={})
-
-    # Index M3's data by id first, then method+endpoint for fast lookup
+    scanner_data = _load_scanner_data()
+    agent_data = load_json("agent_results.json", default=[])
+    onboarding = load_json("onboarding.json", default={})
+    
+    # Build lookup index for agent results
     agent_index = {}
     for item in agent_data if isinstance(agent_data, list) else []:
-        if not isinstance(item, dict):
-            continue
-        # Primary key: id
-        if item.get("id"):
+        if isinstance(item, dict) and item.get("id"):
             agent_index[item["id"]] = item
         else:
             # Fallback: method+endpoint key
@@ -724,3 +723,76 @@ def get_merged_inventory() -> list[dict]:
 
     enriched.sort(key=_priority_sort_key, reverse=True)
     return enriched
+
+
+def _parse_mitigation_steps(violations):
+    # Parse M3 violations into frontend mitigation steps format
+    if not violations:
+        return []
+    
+    steps = []
+    if isinstance(violations, str):
+        # Parse violations string into individual steps
+        violation_lines = violations.split('\n')
+        for i, line in enumerate(violation_lines, 1):
+            line = line.strip()
+            if line and line != "None":
+                steps.append({
+                    "step": i,
+                    "action": line
+                })
+    elif isinstance(violations, list):
+        for i, violation in enumerate(violations, 1):
+            if violation:
+                steps.append({
+                    "step": i,
+                    "action": str(violation)
+                })
+    
+    return steps
+
+
+def _parse_mitigation_recommendation(risk_summary, state):
+    # Parse M3 risk summary into frontend recommendation format
+    if not risk_summary:
+        return None
+    
+    # Extract key recommendation from risk summary
+    if state and state.lower() in ["zombie", "rogue"]:
+        if "decommission" in risk_summary.lower() or "remove" in risk_summary.lower():
+            return "Decommission immediately"
+        else:
+            return "Decommission recommended"
+    elif state and state.lower() == "shadow":
+        if "register" in risk_summary.lower() or "document" in risk_summary.lower():
+            return "Register in gateway"
+        else:
+            return "Document and secure"
+    else:
+        # For active endpoints
+        if "monitor" in risk_summary.lower():
+            return "Continue monitoring"
+        elif "harden" in risk_summary.lower():
+            return "Harden security"
+        else:
+            return "Review and update"
+
+
+def _parse_mitigation_confidence(state):
+    # Parse confidence based on endpoint state
+    if not state:
+        return None
+    
+    state_lower = state.lower()
+    if state_lower == "rogue":
+        return 95
+    elif state_lower == "zombie":
+        return 85
+    elif state_lower == "shadow":
+        return 75
+    elif state_lower == "active":
+        return 60
+    else:
+        return 50
+
+

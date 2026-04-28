@@ -14,7 +14,11 @@ QUEUE_IMPORTANCE_THRESHOLD = 70
 
 
 def _is_queue_candidate(endpoint: dict) -> bool:
-    return int(endpoint.get("importance_score") or 0) >= QUEUE_IMPORTANCE_THRESHOLD
+    importance_score = int(endpoint.get("importance_score") or 0)
+    has_agent_fix = bool(endpoint.get("technical_fix")) or bool(endpoint.get("recommended_action"))
+    has_findings = bool(endpoint.get("violations")) or bool(endpoint.get("owasp_flags"))
+    risky_state = str(endpoint.get("state") or "").lower() in {"rogue", "shadow", "zombie"}
+    return importance_score >= QUEUE_IMPORTANCE_THRESHOLD or (has_agent_fix and (has_findings or risky_state))
 
 
 def _load_actions() -> dict:
@@ -49,7 +53,6 @@ def set_queue_action(endpoint_id: str, body: dict) -> dict:
         raise HTTPException(status_code=400, detail="Invalid action")
 
     actions = _load_actions()
-    # Store in a UI-friendly way keyed by api_id (fallback: endpoint path).
     prev = actions.get(key)
     added_at = prev.get("added_at") if isinstance(prev, dict) else None
     actions[key] = {"status": action, "added_at": added_at}

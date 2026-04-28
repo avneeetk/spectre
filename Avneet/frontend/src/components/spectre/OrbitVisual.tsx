@@ -40,11 +40,11 @@ const OrbitVisual = () => {
         }}
       />
 
-      {/* Outer orbit — Zombie */}
+      {/* Outer orbit - Zombie */}
       <Orbit size="92%" color="hsl(var(--spectre-zombie))" label="Zombie APIs" labelPos="top" dashed />
-      {/* Middle orbit — Shadow */}
+      {/* Middle orbit - Shadow */}
       <Orbit size="66%" color="hsl(var(--spectre-shadow))" label="Shadow APIs" labelPos="right" dashed />
-      {/* Inner orbit — Known/Active */}
+      {/* Inner orbit - Known/Active */}
       <Orbit size="40%" color="hsl(var(--spectre-active))" label="Known APIs" labelPos="top" />
 
       {/* Rotating rings of dots */}

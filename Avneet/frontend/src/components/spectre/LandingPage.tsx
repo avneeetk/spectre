@@ -48,7 +48,7 @@ const LandingPage = ({ onStart }: LandingPageProps) => {
       tag: "Agentic Mitigation",
       icon: Sparkles,
       title: "Detect. Analyse. Recommend. Autonomously.",
-      desc: "An AI mitigation agent investigates each flagged endpoint step by step — traffic history, callers, replacements, OWASP guidance — then drafts the exact action.",
+      desc: "An AI mitigation agent investigates each flagged endpoint step by step - traffic history, callers, replacements, OWASP guidance - then drafts the exact action.",
       points: ["Step-by-step reasoning", "Confidence-rated plans", "Block, remove or review", "Decommission queue workflow"],
     },
   ];
@@ -63,7 +63,7 @@ const LandingPage = ({ onStart }: LandingPageProps) => {
 
   const steps = [
     { n: "01", icon: GitBranch, title: "Connect", desc: "Point SPECTRE at your gateway configs, code repos, network interface and Docker socket. Runs entirely inside your infrastructure." },
-    { n: "02", icon: Network, title: "Discover", desc: "Every API mapped — including shadow, zombie and rogue endpoints across all four sources." },
+    { n: "02", icon: Network, title: "Discover", desc: "Every API mapped - including shadow, zombie and rogue endpoints across all four sources." },
     { n: "03", icon: Shield, title: "Govern", desc: "Risk scores, AI explanations and an agent-driven mitigation plan tell you what to fix first and exactly how." },
   ];
 
@@ -80,7 +80,7 @@ const LandingPage = ({ onStart }: LandingPageProps) => {
           <div className="flex items-center gap-3">
             <a href="#how" className="hidden md:inline text-xs text-muted-foreground hover:text-foreground transition-colors">How it works</a>
             <a href="#pillars" className="hidden md:inline text-xs text-muted-foreground hover:text-foreground transition-colors">Platform</a>
-            <a href="#compliance" className="hidden md:inline text-xs text-muted-foreground hover:text-foreground transition-colors">Compliance</a>
+            {/* <a href="#compliance" className="hidden md:inline text-xs text-muted-foreground hover:text-foreground transition-colors">Compliance</a> */}
             <ThemeToggle />
             <button
               onClick={onStart}
@@ -142,7 +142,7 @@ const LandingPage = ({ onStart }: LandingPageProps) => {
           </h1>
 
           <p className="mx-auto mt-8 max-w-xl text-base text-muted-foreground leading-relaxed animate-fade-in-up" style={{ animationDelay: "550ms" }}>
-            SPECTRE scans your gateways, repositories and live traffic to surface every API — then ranks them by technical risk and business importance, with an AI agent recommending exactly what to do next.
+            SPECTRE scans your gateways, repositories and live traffic to surface every API - then ranks them by technical risk and business importance, with an AI agent recommending exactly what to do next.
           </p>
 
           <div className="mt-10 flex items-center justify-center gap-3 animate-fade-in-up" style={{ animationDelay: "700ms" }}>
@@ -179,7 +179,7 @@ const LandingPage = ({ onStart }: LandingPageProps) => {
         </div>
       </section>
 
-      {/* CONTINUOUS DISCOVERY — orbital visual */}
+      {/* CONTINUOUS DISCOVERY - orbital visual */}
       <section className="relative overflow-hidden border-b border-border">
         <div
           aria-hidden
@@ -201,7 +201,7 @@ const LandingPage = ({ onStart }: LandingPageProps) => {
                 No API stays hidden.
               </h2>
               <p className="mt-5 max-w-md text-sm md:text-base text-muted-foreground leading-relaxed">
-                Continuous discovery across cloud, microservices and third-party integrations. SPECTRE maps every endpoint into orbit — known, shadow, zombie or rogue — so nothing escapes inventory.
+                Continuous discovery across cloud, microservices and third-party integrations. SPECTRE maps every endpoint into orbit - known, shadow, zombie or rogue - so nothing escapes inventory.
               </p>
 
               <ul className="mt-8 space-y-3 text-sm">
@@ -275,7 +275,7 @@ const LandingPage = ({ onStart }: LandingPageProps) => {
           <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground mb-3">Classification</div>
           <h2 className="text-3xl md:text-4xl tracking-tight font-medium max-w-2xl">Every API falls into one of four states.</h2>
           <p className="mt-4 max-w-2xl text-sm text-muted-foreground leading-relaxed">
-            SPECTRE classifies each endpoint based on traffic, documentation, ownership and gateway presence — so the response is always specific.
+            SPECTRE classifies each endpoint based on traffic, documentation, ownership and gateway presence - so the response is always specific.
           </p>
 
           <div className="mt-10 grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -356,12 +356,12 @@ const LandingPage = ({ onStart }: LandingPageProps) => {
       </section>
 
       {/* COMPLIANCE */}
-      <section id="compliance" className="border-b border-border">
+      {/* <section id="compliance" className="border-b border-border">
         <div className="mx-auto max-w-5xl px-6 py-20">
           <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground mb-3">Compliance</div>
           <h2 className="text-3xl md:text-4xl tracking-tight font-medium max-w-2xl">Map findings to the frameworks you already report on.</h2>
           <p className="mt-4 max-w-2xl text-sm text-muted-foreground leading-relaxed">
-            Onboard once with your business context — SPECTRE tags every API against the regulations that apply to your environment.
+            Onboard once with your business context - SPECTRE tags every API against the regulations that apply to your environment.
           </p>
 
           <div className="mt-10 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-px rounded-xl border border-border bg-border overflow-hidden">
@@ -376,7 +376,7 @@ const LandingPage = ({ onStart }: LandingPageProps) => {
             ))}
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* WHY IT MATTERS */}
       <section className="border-b border-border">
@@ -405,7 +405,7 @@ const LandingPage = ({ onStart }: LandingPageProps) => {
               Every unmanaged API <span className="text-[#E24B4A]">is an open door.</span>
             </h2>
             <p className="mt-5 text-sm text-muted-foreground max-w-md mx-auto">
-              Run your first scan in under a minute. SPECTRE stays inside your infrastructure — nothing leaves your network.
+              Run your first scan in under a minute. SPECTRE stays inside your infrastructure - nothing leaves your network.
             </p>
             <div className="mt-8 flex items-center justify-center gap-3">
               <button
@@ -431,7 +431,7 @@ const LandingPage = ({ onStart }: LandingPageProps) => {
         <div className="mx-auto max-w-5xl px-6 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
             <div className="flex h-6 w-6 items-center justify-center rounded-md bg-[#E24B4A] text-white text-[10px] font-medium">SP</div>
-            <span className="text-xs text-muted-foreground">SPECTRE — open-source API governance, built for security engineers and developers.</span>
+            <span className="text-xs text-muted-foreground">SPECTRE - open-source API governance, built for security engineers and developers.</span>
           </div>
           <div className="flex items-center gap-4 text-[11px] text-muted-foreground">
             <span className="inline-flex items-center gap-1.5"><Lock className="h-3 w-3" /> Self-hosted</span>

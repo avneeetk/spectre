@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ArrowRight, ArrowLeft, Github, Sparkles, ChevronDown, Shield, Server, Code, Wifi, Container } from "lucide-react";
-import { SCAN_CONFIG } from "@/data/mockData";
+import { DISCOVERED_APIS, SCAN_CONFIG } from "@/data/mockData";
 import { refreshInventory } from "@/api/client";
 import { useSpectreData } from "@/providers/SpectreDataProvider";
 import NavBar from "./NavBar";
@@ -47,7 +47,7 @@ interface ScanConfigProps {
 }
 
 const ScanConfig = ({ onContinue, onBack }: ScanConfigProps) => {
-  const { onboarding } = useSpectreData();
+  const { onboarding, inventory } = useSpectreData();
   const [repoUrl, setRepoUrl] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -60,6 +60,9 @@ const ScanConfig = ({ onContinue, onBack }: ScanConfigProps) => {
   const [networkInterface, setNetworkInterface] = useState(SCAN_CONFIG.network_interface);
   const [dockerSocket, setDockerSocket] = useState(SCAN_CONFIG.docker_socket);
   const [toggles, setToggles] = useState([true, true, false, false]);
+  const trimmedRepoUrl = repoUrl.trim();
+  const trimmedEnvName = envName.trim();
+  const useMockDemo = !trimmedRepoUrl;
 
   const scanSources = [
     { icon: Server, label: "Gateway scan", desc: "Kong and Nginx configs", tag: "Source of truth" },
@@ -88,23 +91,39 @@ const ScanConfig = ({ onContinue, onBack }: ScanConfigProps) => {
       setError("Complete onboarding before starting a scan");
       return;
     }
-    
-    if (!repoUrl) {
-      setError("Enter a repository URL to scan");
+
+    if (!trimmedRepoUrl && !trimmedEnvName) {
+      setError("Add an environment name or repository URL to continue");
       return;
     }
 
     setLoading(true);
     try {
-      // Trigger the scan pipeline via API client (calls backend on port 8000)
       if (typeof window !== "undefined") {
-        window.localStorage.setItem("spectre_repo_url", repoUrl);
-        window.localStorage.setItem("spectre_env_name", envName || repoUrl);
+        if (trimmedRepoUrl) {
+          window.localStorage.setItem("spectre_repo_url", trimmedRepoUrl);
+        } else {
+          window.localStorage.removeItem("spectre_repo_url");
+        }
+        window.localStorage.setItem("spectre_env_name", trimmedEnvName || "Mock Demo Environment");
+      }
+
+      if (useMockDemo) {
+        const mockEndpoints = inventory.length ? inventory : DISCOVERED_APIS;
+        onContinue({
+          repo_url: "",
+          scan_id: `mock-${Date.now()}`,
+          timestamp: new Date().toISOString(),
+          endpoints: mockEndpoints,
+          total: mockEndpoints.length,
+          sources: {},
+        });
+        return;
       }
 
       const data = await refreshInventory({
-        repo_url: repoUrl,
-        environment_name: envName,
+        repo_url: trimmedRepoUrl,
+        environment_name: trimmedEnvName || trimmedRepoUrl,
         gateway_config_path: gatewayPath,
         repo_path: repoPath,
         network_interface: networkInterface,
@@ -119,7 +138,7 @@ const ScanConfig = ({ onContinue, onBack }: ScanConfigProps) => {
       
       // Store scan metadata
       const scanResult = {
-        repo_url: repoUrl,
+        repo_url: trimmedRepoUrl,
         scan_id: Date.now().toString(),
         timestamp: new Date().toISOString(),
         endpoints: data.inventory || [],
@@ -138,7 +157,7 @@ const ScanConfig = ({ onContinue, onBack }: ScanConfigProps) => {
   return (
     <div className="min-h-screen animate-spectre-fade-in">
       <NavBar />
-      <div className="mx-auto max-w-[900px] px-6 py-10">
+      <div className="mx-auto max-w-[1100px] px-6 py-10">
         {/* Header */}
         <button 
           onClick={onBack} 
@@ -151,17 +170,14 @@ const ScanConfig = ({ onContinue, onBack }: ScanConfigProps) => {
           Scan your APIs instantly
         </h1>
         <p className="text-sm text-muted-foreground mb-8">
-          Onboarding is complete. Paste a GitHub repository or try a real-world example.
+          Onboarding is complete. Paste a GitHub repository or leave it blank and run the mock demo from the advanced environment settings.
         </p>
         {!onboardingReady && (
           <div className="mb-5 rounded-lg border border-[#E24B4A]/20 bg-[#E24B4A]/[0.06] p-3 text-[11px] text-[#A43A37]">
             Business context is required before scan because importance, regulation, and graph-based priority now drive the dashboard.
           </div>
         )}
-        <div className="mb-5 rounded-lg border border-border bg-muted/20 p-3 text-[11px] text-muted-foreground">
-          Demo note: scanner will attempt GitHub analysis first if a repo URL is provided, then fall back to bundled sample files.
-          The repo URL directly affects scan output and discovery results.
-        </div>
+       
 
         {/* MAIN ACTION: GitHub Scan */}
         <div className="rounded-xl border border-border bg-card p-5 mb-6">
@@ -171,11 +187,14 @@ const ScanConfig = ({ onContinue, onBack }: ScanConfigProps) => {
           </div>
           <input
             type="text"
-            placeholder="https://github.com/org/repo"
+            placeholder="Optional: https://github.com/org/repo"
             value={repoUrl}
             onChange={(e) => setRepoUrl(e.target.value)}
             className="w-full rounded-lg bg-input border border-input-border px-3 py-2.5 text-sm text-foreground outline-none focus:border-[#E24B4A]/50 mb-3"
           />
+          <div className="mb-3 text-[11px] text-muted-foreground">
+            Leave this empty to run the bundled mock demo using the environment name from Advanced configuration.
+          </div>
           {error && (
             <div className="mb-3 text-xs text-red-500 bg-red-500/10 px-3 py-2 rounded">
               {error}
@@ -189,18 +208,18 @@ const ScanConfig = ({ onContinue, onBack }: ScanConfigProps) => {
             {loading ? (
               <>
                 <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Scanning...
+                {useMockDemo ? "Loading demo..." : "Scanning..."}
               </>
             ) : (
-              "Start Scan"
+              trimmedRepoUrl ? "Start Scan" : "Run Demo"
             )}
           </button>
         </div>
 
         {/* FEATURED REPOS */}
         <div className="mb-6">
-          <div className="flex items-center gap-2 mb-3 text-xs text-muted-foreground">
-            <Sparkles className="h-3 w-3" />
+          <div className="flex items-center gap-2 mb-3 text-l text-foreground">
+            <Sparkles className="h-3 w-3"  />
             Try with real-world systems
           </div>
           <div className="grid grid-cols-2 gap-3">

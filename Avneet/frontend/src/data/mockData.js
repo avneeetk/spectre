@@ -1,5 +1,5 @@
 export const SCAN_CONFIG = {
-  environment_name: "FinTech Corp — Mock Bank",
+  environment_name: "FinTech Corp - Mock Bank",
   gateway_config_path: "/etc/kong/declarative/kong.yml",
   repo_path: "/workspace/services/",
   network_interface: "eth0",
@@ -46,7 +46,7 @@ export const DISCOVERED_APIS = [
       { month: "Mar", calls: 17100 }
     ],
     owasp_checks: {
-      API2: { passed: true, detail: "Auth required — 401 returned with no credentials" },
+      API2: { passed: true, detail: "Auth required - 401 returned with no credentials" },
       API4: { passed: true, detail: "429 returned after rate limit exceeded" },
       API8: { passed: true, detail: "TLS present, no stack trace in errors" },
       API9: { passed: true, detail: "Found in Kong config, OpenAPI spec, and owner record" }
@@ -68,7 +68,7 @@ export const DISCOVERED_APIS = [
     confidence: 0.88,
     last_seen: "2025-03-20T14:30:00Z",
     tags: ["python", "fastapi"],
-    raw_context: "observed in traffic — not in gateway config",
+    raw_context: "observed in traffic - not in gateway config",
     state: "rogue",
     technical_score: 94,
     importance_score: 97,
@@ -79,7 +79,7 @@ export const DISCOVERED_APIS = [
     data_sensitivity: "critical",
     is_external_facing: true,
     regulatory_scope: ["pci"],
-    ai_summary: "This endpoint duplicates a known payment processing route but has no authentication and no gateway registration. It is receiving live traffic — meaning real payment calls may be hitting an unprotected endpoint. This is a critical OWASP API9 inventory failure combined with broken authentication (API2).",
+    ai_summary: "This endpoint duplicates a known payment processing route but has no authentication and no gateway registration. It is receiving live traffic - meaning real payment calls may be hitting an unprotected endpoint. This is a critical OWASP API9 inventory failure combined with broken authentication (API2).",
     ai_next_step: "Immediately block this route at the network level. Investigate traffic logs to determine if any payment calls were processed through this unprotected endpoint. Escalate to the security team and payments-service owner.",
     traffic_history: [
       { month: "Oct", calls: 0 },
@@ -90,7 +90,7 @@ export const DISCOVERED_APIS = [
       { month: "Mar", calls: 412 }
     ],
     owasp_checks: {
-      API2: { passed: false, detail: "No auth required — 200 returned with no credentials" },
+      API2: { passed: false, detail: "No auth required - 200 returned with no credentials" },
       API4: { passed: false, detail: "No 429 after 100 rapid requests" },
       API8: { passed: true, detail: "TLS present" },
       API9: { passed: false, detail: "Not in Kong config, not in any OpenAPI spec, no owner record, conflicts with known route" }
@@ -112,7 +112,7 @@ export const DISCOVERED_APIS = [
     confidence: 0.95,
     last_seen: "2024-09-14T11:22:00Z",
     tags: ["python", "fastapi"],
-    raw_context: "@app.get('/v1/accounts/export') — accounts-service/routes/export.py line 47",
+    raw_context: "@app.get('/v1/accounts/export') - accounts-service/routes/export.py line 47",
     state: "zombie",
     technical_score: 71,
     importance_score: 82,
@@ -123,7 +123,7 @@ export const DISCOVERED_APIS = [
     data_sensitivity: "critical",
     is_external_facing: false,
     regulatory_scope: ["pci", "gdpr"],
-    ai_summary: "This endpoint has not received traffic since September 2024 and has no assigned owner or gateway registration. It fails authentication and rate limiting checks — anyone who discovers this URL can call it without credentials and retrieve account export data.",
+    ai_summary: "This endpoint has not received traffic since September 2024 and has no assigned owner or gateway registration. It fails authentication and rate limiting checks - anyone who discovers this URL can call it without credentials and retrieve account export data.",
     ai_next_step: "Confirm with the accounts team whether this export function is still needed. If not, remove the route from accounts-service/routes/export.py line 47 and raise a PR. Verify no active callers in traffic logs for the past 90 days before removal.",
     traffic_history: [
       { month: "Jun", calls: 142 },
@@ -136,8 +136,8 @@ export const DISCOVERED_APIS = [
       { month: "Jan", calls: 0 }
     ],
     owasp_checks: {
-      API2: { passed: false, detail: "No auth header required — 200 returned with no credentials" },
-      API4: { passed: false, detail: "No 429 after 100 rapid requests — no rate limiting" },
+      API2: { passed: false, detail: "No auth header required - 200 returned with no credentials" },
+      API4: { passed: false, detail: "No 429 after 100 rapid requests - no rate limiting" },
       API8: { passed: true, detail: "TLS present, no stack trace in error response" },
       API9: { passed: false, detail: "Not in Kong config, not in any OpenAPI spec, no owner record" }
     }
@@ -158,7 +158,7 @@ export const DISCOVERED_APIS = [
     confidence: 0.91,
     last_seen: "2024-08-02T09:15:00Z",
     tags: ["python", "fastapi"],
-    raw_context: "@app.get('/internal/audit-log') — audit-service/routes/debug.py line 12",
+    raw_context: "@app.get('/internal/audit-log') - audit-service/routes/debug.py line 12",
     state: "zombie",
     technical_score: 68,
     importance_score: 28,
@@ -170,7 +170,7 @@ export const DISCOVERED_APIS = [
     is_external_facing: false,
     regulatory_scope: [],
     ai_summary: "A debug endpoint left in production. No traffic since August 2024, no owner, not in the gateway. Although the data sensitivity is low, leaving unowned debug endpoints in production is a governance failure and sets a poor precedent.",
-    ai_next_step: "Remove the route from audit-service/routes/debug.py line 12. This is a debug endpoint with no production use — safe to delete immediately without needing team confirmation.",
+    ai_next_step: "Remove the route from audit-service/routes/debug.py line 12. This is a debug endpoint with no production use - safe to delete immediately without needing team confirmation.",
     traffic_history: [
       { month: "May", calls: 45 },
       { month: "Jun", calls: 23 },
@@ -180,7 +180,7 @@ export const DISCOVERED_APIS = [
       { month: "Oct", calls: 0 }
     ],
     owasp_checks: {
-      API2: { passed: false, detail: "No auth required — debug endpoint fully open" },
+      API2: { passed: false, detail: "No auth required - debug endpoint fully open" },
       API4: { passed: true, detail: "Rate limiting present via nginx" },
       API8: { passed: false, detail: "Error responses include internal stack traces" },
       API9: { passed: false, detail: "Not in Kong config, not in spec, no owner" }
@@ -202,7 +202,7 @@ export const DISCOVERED_APIS = [
     confidence: 0.79,
     last_seen: "2025-03-19T22:11:00Z",
     tags: [],
-    raw_context: "observed in traffic — source unknown, not in any repo or gateway",
+    raw_context: "observed in traffic - source unknown, not in any repo or gateway",
     state: "shadow",
     technical_score: 76,
     importance_score: 91,
@@ -214,14 +214,14 @@ export const DISCOVERED_APIS = [
     is_external_facing: false,
     regulatory_scope: ["pci"],
     ai_summary: "This endpoint is receiving live traffic but does not exist in any gateway, spec, or code repository that SPECTRE scanned. It has no authentication. An admin reset endpoint with no auth and no known origin is an extremely high-risk finding.",
-    ai_next_step: "Treat as an incident. Identify the service emitting this endpoint immediately — check all running containers for a process serving on this route. Block at the network level until the source is identified.",
+    ai_next_step: "Treat as an incident. Identify the service emitting this endpoint immediately - check all running containers for a process serving on this route. Block at the network level until the source is identified.",
     traffic_history: [
       { month: "Jan", calls: 4 },
       { month: "Feb", calls: 11 },
       { month: "Mar", calls: 28 }
     ],
     owasp_checks: {
-      API2: { passed: false, detail: "No auth — admin endpoint fully open" },
+      API2: { passed: false, detail: "No auth - admin endpoint fully open" },
       API4: { passed: false, detail: "No rate limiting detected" },
       API8: { passed: true, detail: "TLS present" },
       API9: { passed: false, detail: "Not in any gateway, spec, repo, or owner record" }
@@ -265,7 +265,7 @@ export const DISCOVERED_APIS = [
       { month: "Mar", calls: 61400 }
     ],
     owasp_checks: {
-      API2: { passed: true, detail: "JWT required — 401 returned without valid token" },
+      API2: { passed: true, detail: "JWT required - 401 returned without valid token" },
       API4: { passed: true, detail: "Rate limiting enforced via Kong plugin" },
       API8: { passed: true, detail: "TLS present, CORS properly configured" },
       API9: { passed: true, detail: "In Kong config, in OpenAPI spec, owner: accounts-team" }
@@ -287,7 +287,7 @@ export const DISCOVERED_APIS = [
     confidence: 0.83,
     last_seen: "2025-03-18T16:40:00Z",
     tags: [],
-    raw_context: "observed in traffic — not in gateway or repo",
+    raw_context: "observed in traffic - not in gateway or repo",
     state: "shadow",
     technical_score: 69,
     importance_score: 38,
@@ -305,9 +305,9 @@ export const DISCOVERED_APIS = [
       { month: "Mar", calls: 34 }
     ],
     owasp_checks: {
-      API2: { passed: false, detail: "No auth required — raw data endpoint open" },
-      API4: { passed: true, detail: "Low traffic volume — rate limit not applicable" },
-      API8: { passed: true, detail: "Internal network only — TLS not required" },
+      API2: { passed: false, detail: "No auth required - raw data endpoint open" },
+      API4: { passed: true, detail: "Low traffic volume - rate limit not applicable" },
+      API8: { passed: true, detail: "Internal network only - TLS not required" },
       API9: { passed: false, detail: "Not in Kong, not in spec, no owner" }
     }
   }
@@ -320,18 +320,18 @@ export const SCAN_LOG_LINES = [
   { source: "GATEWAY", text: "Found route: GET /v1/accounts/{id}/balance → accounts-service", delay: 1200 },
   { source: "GATEWAY", text: "Found route: GET /v1/kyc/documents/{id} → kyc-service", delay: 1500 },
   { source: "REPO", text: "Scanning Python AST: accounts-service/routes/export.py", delay: 2200 },
-  { source: "REPO", text: "Found route decorator: @app.get('/v1/accounts/export') — NOT in gateway", delay: 2600 },
+  { source: "REPO", text: "Found route decorator: @app.get('/v1/accounts/export') - NOT in gateway", delay: 2600 },
   { source: "REPO", text: "Scanning Python AST: audit-service/routes/debug.py", delay: 3000 },
-  { source: "REPO", text: "Found route decorator: @app.get('/internal/audit-log') — NOT in gateway", delay: 3400 },
+  { source: "REPO", text: "Found route decorator: @app.get('/internal/audit-log') - NOT in gateway", delay: 3400 },
   { source: "REPO", text: "Scanning Python AST: forex-service/routes/legacy.py", delay: 3800 },
-  { source: "REPO", text: "Found route: GET /v1/forex/rates-legacy — marked deprecated in code comment", delay: 4200 },
-  { source: "TRAFFIC", text: "Traffic proxy active on eth0 — observing request patterns", delay: 5000 },
-  { source: "TRAFFIC", text: "Shadow API detected: POST /api/admin/reset — not in any registry", delay: 5500 },
-  { source: "TRAFFIC", text: "Shadow API detected: GET /internal/reporting/raw — no spec found", delay: 6000 },
-  { source: "TRAFFIC", text: "Rogue API detected: POST /v1/payments/process — conflicts with gateway route, no auth", delay: 6500 },
+  { source: "REPO", text: "Found route: GET /v1/forex/rates-legacy - marked deprecated in code comment", delay: 4200 },
+  { source: "TRAFFIC", text: "Traffic proxy active on eth0 - observing request patterns", delay: 5000 },
+  { source: "TRAFFIC", text: "Shadow API detected: POST /api/admin/reset - not in any registry", delay: 5500 },
+  { source: "TRAFFIC", text: "Shadow API detected: GET /internal/reporting/raw - no spec found", delay: 6000 },
+  { source: "TRAFFIC", text: "Rogue API detected: POST /v1/payments/process - conflicts with gateway route, no auth", delay: 6500 },
   { source: "CONTAINER", text: "Reading Docker socket: /var/run/docker.sock", delay: 7200 },
-  { source: "CONTAINER", text: "Service detected: loans-service:8012 — port exposed, not in gateway", delay: 7600 },
-  { source: "CONTAINER", text: "Service detected: internal-ops:8014 — no gateway entry", delay: 8000 },
+  { source: "CONTAINER", text: "Service detected: loans-service:8012 - port exposed, not in gateway", delay: 7600 },
+  { source: "CONTAINER", text: "Service detected: internal-ops:8014 - no gateway entry", delay: 8000 },
   { source: "COMPLETE", text: "Discovery complete. 15 APIs found across 4 sources in 8.3s", delay: 8400 }
 ];
 
@@ -454,6 +454,6 @@ export const MITIGATION_AGENT_STEPS = {
     { step: 2, action: "Identifying service origin", finding: "Not found in any repo scan or gateway config. Source container unknown." },
     { step: 3, action: "Checking for auth mechanism", finding: "Zero authentication. Admin endpoint fully open. Critical finding." },
     { step: 4, action: "Consulting OWASP API2 + API9 guidance", finding: "Broken auth on admin endpoint with no registry entry = treat as active incident." },
-    { recommendation: "Block immediately — treat as incident", detail: "Block this route at network level. Identify source container via docker inspect. Escalate to security team. Do not wait for scheduled review.", confidence: 97 }
+    { recommendation: "Block immediately - treat as incident", detail: "Block this route at network level. Identify source container via docker inspect. Escalate to security team. Do not wait for scheduled review.", confidence: 97 }
   ]
 };

@@ -54,7 +54,7 @@ const QUESTIONS: {
   {
     id: "regulations",
     question: "What regulations does your system fall under?",
-    subtitle: "Select all that apply — or None if uncertain",
+    subtitle: "Select all that apply - or None if uncertain",
     type: "multi",
     options: [
       { value: "pci", label: "PCI-DSS" },

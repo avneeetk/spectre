@@ -46,8 +46,24 @@ const ClassificationPhase = ({ onComplete }: ClassificationPhaseProps) => {
     <div className="min-h-screen animate-spectre-fade-in">
       <NavBar />
       <PhaseIndicator currentPhase={2} />
+   <div className="max flex justify-center pt-4">
+      <div className="flex mb-5 gap-3">
+          {[
+            { label: "Active", key: "active", cls: "text-spectre-active" },
+            { label: "Zombie", key: "zombie", cls: "text-spectre-zombie" },
+            { label: "Shadow", key: "shadow", cls: "text-spectre-shadow" },
+            { label: "Rogue", key: "rogue", cls: "text-spectre-rogue" },
+          ].map(({ label, key, cls }) => (
+            <div key={key} className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2">
+              <span className={`text-xl font-medium tabular-nums ${cls}`}>{stateCounts[key] || 0}</span>
+              <span className="text-xs text-muted-foreground">{label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
       <div className="mx-auto max-w-[800px] px-6">
-        <div className="mb-5">
+        
+        <div className="mb-6">
           <h2 className="mb-3 text-lg font-medium text-foreground">
             Classifier labeled {Math.min(revealedCount, total)} discovered APIs
           </h2>
@@ -128,7 +144,7 @@ const ClassificationPhase = ({ onComplete }: ClassificationPhaseProps) => {
         )}
 
         {/* Manual proceed button */}
-        <div className="flex justify-center mt-8">
+        <div className="flex justify-center mt-0">
           <button
             onClick={onComplete}
             className="inline-flex items-center gap-2 rounded-lg bg-[#E24B4A] px-5 py-2.5 text-sm font-medium text-white transition-all hover:opacity-90 active:scale-[0.98]"
@@ -138,19 +154,7 @@ const ClassificationPhase = ({ onComplete }: ClassificationPhaseProps) => {
           </button>
         </div>
 
-        <div className="flex gap-3">
-          {[
-            { label: "Active", key: "active", cls: "text-spectre-active" },
-            { label: "Zombie", key: "zombie", cls: "text-spectre-zombie" },
-            { label: "Shadow", key: "shadow", cls: "text-spectre-shadow" },
-            { label: "Rogue", key: "rogue", cls: "text-spectre-rogue" },
-          ].map(({ label, key, cls }) => (
-            <div key={key} className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2">
-              <span className={`text-xl font-medium tabular-nums ${cls}`}>{stateCounts[key] || 0}</span>
-              <span className="text-xs text-muted-foreground">{label}</span>
-            </div>
-          ))}
-        </div>
+        
       </div>
     </div>
   );

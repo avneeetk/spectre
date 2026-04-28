@@ -57,8 +57,12 @@ export interface ApiEndpointUI {
   also_found_in_conflict_with?: string | null;
   centrality_score?: number;
   traffic_history?: { month: string; calls: number }[];
+  severity?: "Critical" | "High" | "Medium" | "Low" | null;
+  action_type?: "decommission" | "register" | "harden" | "review" | null;
+  risk_summary?: string | null;
   ai_summary?: string | null;
   ai_next_step?: string | null;
+  violations?: string | string[] | null;
   technical_fix?: string | null;
   state_reason?: string | null;
   m2_data_sensitivity?: string | null;
@@ -85,9 +89,39 @@ export interface ServiceContext {
   regulatory_scope?: string[];
 }
 
+export interface GraphNodeData {
+  id: string;
+  api_id?: string;
+  label: string;
+  method?: string;
+  path?: string;
+  service?: string;
+  service_name?: string;
+  state?: string;
+  relation_count?: number;
+  centrality?: number;
+  technical_score?: number;
+  importance_score?: number;
+  owasp_flags?: string[];
+  resource_family?: string;
+  summary?: string | null;
+  colour?: string;
+  size?: number;
+}
+
+export interface GraphEdgeData {
+  id: string;
+  source: string;
+  target: string;
+  relation?: string;
+  reason?: string;
+  impact?: string;
+  inferred?: boolean;
+}
+
 export interface GraphResponse {
-  nodes: Array<{ data: Record<string, unknown> }>;
-  edges: Array<{ data: Record<string, unknown> }>;
+  nodes: Array<{ data: GraphNodeData }>;
+  edges: Array<{ data: GraphEdgeData }>;
   summary: Record<string, unknown>;
   service_context: ServiceContext[];
 }

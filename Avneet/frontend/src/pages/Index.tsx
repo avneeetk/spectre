@@ -1,4 +1,5 @@
-import { useState, useCallback } from "react";
+import { useCallback } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import LandingPage from "@/components/spectre/LandingPage";
 import ScanConfig from "@/components/spectre/ScanConfig";
 import OnboardingFlow from "@/components/spectre/OnboardingFlow";
@@ -8,23 +9,36 @@ import AIAnalysisPhase from "@/components/spectre/AIAnalysisPhase";
 import Dashboard from "@/components/spectre/Dashboard";
 
 type Screen = "landing" | "config" | "onboarding" | "discovery" | "classification" | "analysis" | "dashboard";
+const SCREEN_PATHS: Record<Screen, string> = {
+  landing: "/landing",
+  onboarding: "/onboarding",
+  config: "/config",
+  discovery: "/discovery",
+  classification: "/classification",
+  analysis: "/analysis",
+  dashboard: "/dashboard",
+};
 
-interface ScanResult {
-  repo_url: string;
-  scan_id: string;
-  timestamp: string;
-  endpoints: any[];
-  total: number;
-  sources: Record<string, number>;
-}
+const PATH_SCREENS: Record<string, Screen> = {
+  "/": "landing",
+  "/landing": "landing",
+  "/onboarding": "onboarding",
+  "/config": "config",
+  "/discovery": "discovery",
+  "/classification": "classification",
+  "/analysis": "analysis",
+  "/dashboard": "dashboard",
+};
 
 const Index = () => {
-  const [screen, setScreen] = useState<Screen>("landing");
-  const [scanResult, setScanResult] = useState<ScanResult | null>(null);
-  const goTo = useCallback((s: Screen) => setScreen(s), []);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const screen = PATH_SCREENS[location.pathname] || "landing";
+  const goTo = useCallback((nextScreen: Screen) => {
+    navigate(SCREEN_PATHS[nextScreen]);
+  }, [navigate]);
 
-  const handleScanComplete = useCallback((data: ScanResult) => {
-    setScanResult(data);
+  const handleScanComplete = useCallback(() => {
     goTo("discovery");
   }, [goTo]);
 

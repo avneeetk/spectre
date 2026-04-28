@@ -25,7 +25,7 @@ HEALTH_CHECK_ENDPOINTS = [
     "/api/inventory",
     "/api/inventory/refresh",
     "/api/queue",
-    # "/api/onboarding",
+    "/api/onboarding",
     "/api/graph",
     "/api/scan/trigger",
     "/api/scan/health/services",
