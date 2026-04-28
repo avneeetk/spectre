@@ -5,6 +5,8 @@ import { refreshInventory } from "@/api/client";
 import { useSpectreData } from "@/providers/SpectreDataProvider";
 import NavBar from "./NavBar";
 
+const MODE_OVERRIDE_KEY = "spectre_data_mode_override";
+
 const FEATURED_REPOS = [
   // {
   //   name: "FastAPI + Nginx Proxy Example",
@@ -47,7 +49,7 @@ interface ScanConfigProps {
 }
 
 const ScanConfig = ({ onContinue, onBack }: ScanConfigProps) => {
-  const { onboarding, inventory } = useSpectreData();
+  const { onboarding } = useSpectreData();
   const [repoUrl, setRepoUrl] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -102,14 +104,16 @@ const ScanConfig = ({ onContinue, onBack }: ScanConfigProps) => {
       if (typeof window !== "undefined") {
         if (trimmedRepoUrl) {
           window.localStorage.setItem("spectre_repo_url", trimmedRepoUrl);
+          window.localStorage.setItem(MODE_OVERRIDE_KEY, "live");
         } else {
           window.localStorage.removeItem("spectre_repo_url");
+          window.localStorage.setItem(MODE_OVERRIDE_KEY, "mock");
         }
         window.localStorage.setItem("spectre_env_name", trimmedEnvName || "Mock Demo Environment");
       }
 
       if (useMockDemo) {
-        const mockEndpoints = inventory.length ? inventory : DISCOVERED_APIS;
+        const mockEndpoints = DISCOVERED_APIS;
         onContinue({
           repo_url: "",
           scan_id: `mock-${Date.now()}`,

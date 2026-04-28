@@ -24,8 +24,15 @@ export interface SpectreDataValue {
 }
 
 const MODE: SpectreDataMode = import.meta.env.VITE_SPECTRE_DATA_MODE || "auto";
-
 const LIVE_TIMEOUT_MS: number = Number(import.meta.env.VITE_SPECTRE_LIVE_TIMEOUT_MS) || 900;
+const MODE_OVERRIDE_KEY = "spectre_data_mode_override";
+
+function getPreferredMode(): SpectreDataMode {
+  if (typeof window === "undefined") return MODE;
+  const stored = window.localStorage.getItem(MODE_OVERRIDE_KEY);
+  if (stored === "mock" || stored === "live") return stored;
+  return MODE;
+}
 
 function withTimeoutSignal(timeoutMs: number): { signal: AbortSignal; cancel: () => void } {
   const controller = new AbortController();
@@ -84,23 +91,24 @@ function buildImportanceQueue(inventoryRecords: ApiEndpointUI[]): DecommissionQu
 const SpectreDataContext = createContext<SpectreDataValue | null>(null);
 
 export function SpectreDataProvider({ children }: { children: React.ReactNode }) {
-  const [resolvedMode, setResolvedMode] = useState<SpectreResolvedMode>(MODE === "live" ? "live" : "mock");
-  const [loading, setLoading] = useState<boolean>(MODE !== "mock");
+  const initialMode = getPreferredMode();
+  const [resolvedMode, setResolvedMode] = useState<SpectreResolvedMode>(initialMode === "live" ? "live" : "mock");
+  const [loading, setLoading] = useState<boolean>(initialMode !== "mock");
   const [error, setError] = useState<string | null>(null);
 
   const [inventory, setInventory] = useState<ApiEndpointUI[]>(
-    MODE === "live" ? [] : (DISCOVERED_APIS as ApiEndpointUI[])
+    initialMode === "live" ? [] : (DISCOVERED_APIS as ApiEndpointUI[])
   );
   const [decommissionQueue, setDecommissionQueue] = useState<DecommissionQueueItem[]>(
-    MODE === "live" ? [] : buildImportanceQueue(DISCOVERED_APIS as ApiEndpointUI[])
+    initialMode === "live" ? [] : buildImportanceQueue(DISCOVERED_APIS as ApiEndpointUI[])
   );
   const [graph, setGraph] = useState<GraphResponse>(
-    MODE === "live"
+    initialMode === "live"
       ? { nodes: [], edges: [], summary: {}, service_context: [] }
       : { nodes: [], edges: [], summary: {}, service_context: SERVICE_CONTEXT as ServiceContext[] }
   );
   const [onboarding, setOnboarding] = useState<OnboardingAnswers | Record<string, unknown>>(
-    MODE === "live" ? {} : normalizeOnboarding(ONBOARDING_ANSWERS as Record<string, unknown>)
+    initialMode === "live" ? {} : normalizeOnboarding(ONBOARDING_ANSWERS as Record<string, unknown>)
   );
 
   const mounted = useRef(true);
@@ -111,15 +119,21 @@ export function SpectreDataProvider({ children }: { children: React.ReactNode })
     };
   }, []);
 
+  const applyMockState = () => {
+    setResolvedMode("mock");
+    setLoading(false);
+    setError(null);
+    setInventory(DISCOVERED_APIS as ApiEndpointUI[]);
+    setDecommissionQueue(buildImportanceQueue(DISCOVERED_APIS as ApiEndpointUI[]));
+    setGraph({ nodes: [], edges: [], summary: {}, service_context: SERVICE_CONTEXT as ServiceContext[] });
+    setOnboarding(normalizeOnboarding(ONBOARDING_ANSWERS as Record<string, unknown>));
+  };
+
   const refresh = async (): Promise<void> => {
-    if (MODE === "mock") {
-      setResolvedMode("mock");
-      setLoading(false);
-      setError(null);
-      setInventory(DISCOVERED_APIS as ApiEndpointUI[]);
-      setDecommissionQueue(buildImportanceQueue(DISCOVERED_APIS as ApiEndpointUI[]));
-      setGraph({ nodes: [], edges: [], summary: {}, service_context: SERVICE_CONTEXT as ServiceContext[] });
-      setOnboarding(normalizeOnboarding(ONBOARDING_ANSWERS as Record<string, unknown>));
+    const preferredMode = getPreferredMode();
+
+    if (preferredMode === "mock") {
+      applyMockState();
       return;
     }
 
@@ -134,7 +148,7 @@ export function SpectreDataProvider({ children }: { children: React.ReactNode })
         getInventory({ signal }),
         getQueue({ signal }),
         getGraph({ signal }),
-        getOnboarding({ signal }).catch(() => (MODE === "live" ? {} : ONBOARDING_ANSWERS)),
+        getOnboarding({ signal }).catch(() => (preferredMode === "live" ? {} : ONBOARDING_ANSWERS)),
       ]);
       cancel();
       if (!mounted.current) return;
@@ -149,7 +163,7 @@ export function SpectreDataProvider({ children }: { children: React.ReactNode })
       cancel();
 
       const message = e instanceof Error ? e.message : "Failed to load live data";
-      if (MODE === "live") {
+      if (preferredMode === "live") {
         if (mounted.current) {
           setResolvedMode("live");
           setError(message);
@@ -163,13 +177,7 @@ export function SpectreDataProvider({ children }: { children: React.ReactNode })
 
       // auto => fall back to mock (and stay usable)
       if (mounted.current) {
-        setResolvedMode("mock");
-        setError(null);
-        setInventory(DISCOVERED_APIS as ApiEndpointUI[]);
-        setDecommissionQueue(buildImportanceQueue(DISCOVERED_APIS as ApiEndpointUI[]));
-        setGraph({ nodes: [], edges: [], summary: {}, service_context: SERVICE_CONTEXT as ServiceContext[] });
-        setOnboarding(normalizeOnboarding(ONBOARDING_ANSWERS as Record<string, unknown>));
-        setLoading(false);
+        applyMockState();
       }
     }
   };
@@ -186,7 +194,7 @@ export function SpectreDataProvider({ children }: { children: React.ReactNode })
 
   const value: SpectreDataValue = useMemo(
     () => ({
-      mode: MODE,
+      mode: getPreferredMode(),
       resolvedMode,
       loading,
       error,
