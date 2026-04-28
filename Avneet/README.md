@@ -1,4 +1,7 @@
-# Avneet's Part: Dashboard + Backend Integration
+# Avneet's Part: Member 4 Dashboard + Backend Integration
+
+> **Member 4: Avneet Kaur**  
+> Dashboard, frontend integration, backend orchestration, and DevOps handoff
 
 This folder contains my part of the SPECTRE project:
 
@@ -17,6 +20,70 @@ My backend is the integration layer between the other teammates' services:
 
 The backend exposes inventory, graph, queue, onboarding, and scan endpoints for the UI.
 
+This means my work is the layer that turns three separate technical modules into one usable product. Instead of raw JSON from different services, the user gets a guided flow, a live dashboard, queue-based action items, and one place to trigger and review the full SPECTRE pipeline.
+
+## What I Built
+
+I worked on both the product-facing frontend and the orchestration backend.
+
+### Frontend work
+
+- built the full React dashboard experience for SPECTRE
+- created the multi-step user flow: landing page, onboarding, scan setup, discovery phase, classification phase, AI analysis phase, and final dashboard
+- added endpoint inventory views with prioritization, risk summaries, endpoint detail modal, and state-based badges
+- added knowledge graph screens and service context views so relationships between APIs can be visualized
+- added decommission queue interactions so risky endpoints can be reviewed and marked with actions
+- supported mock mode and live mode so the UI stays usable during development and demos
+
+### Backend work
+
+- built the FastAPI gateway used by the dashboard on port `8000`
+- exposed clean dashboard endpoints for inventory, graph, onboarding, queue, health, and scan control
+- orchestrated the live `M1 -> M2 -> M3` pipeline from one backend route instead of making the frontend talk to each member service directly
+- normalized and merged outputs from the scanner, classifier, and AI layer into one UI-ready inventory format
+- saved debug artifacts in `Avneet/backend/data/` so pipeline runs can be inspected and reused
+- added queue persistence and onboarding persistence for dashboard state
+
+### DevOps and integration work
+
+- connected all four members' services through `docker-compose.yml`
+- configured health checks and service ordering so the frontend starts only after the backend is healthy, and the backend waits for scanner, classifier, and agent services
+- made the dashboard layer the final handoff point where the whole SPECTRE system can be demonstrated end to end
+
+## Architecture
+
+```text
+Member 1 Scanner (8001)
+        |
+        v
+Member 2 Classifier (8003)
+        |
+        v
+Member 3 AI Layer (8002)
+        |
+        v
+Member 4 Backend Gateway (8000)
+        |
+        v
+Member 4 Frontend Dashboard (5173)
+```
+
+In practice, my backend also checks service health, stores onboarding context, builds graph data, prepares queue items, and returns one consistent response format that the frontend can render without needing to understand each teammate's internal schema.
+
+## Key Dashboard Features
+
+- onboarding flow that captures system type, regulations, API consumers, and critical service context
+- scan configuration flow for starting a fresh run
+- live inventory view with endpoint states like `active`, `shadow`, `zombie`, and `rogue`
+- AI-backed findings display including violations, risk summaries, and technical fixes
+- knowledge graph view built from merged endpoint relationships
+- decommission queue for high-priority or risky APIs
+- live health-aware data loading with mock fallback for development
+
+## Why My Part Matters
+
+The other modules generate discovery, classification, and AI analysis. My work is what makes that output understandable and actionable for a real user. It is the part of SPECTRE that behaves like the finished platform: the operator can onboard a system, run a scan, see prioritized risky endpoints, inspect graph relationships, and decide what to decommission or fix next.
+
 ## Quick Start For Teammates
 
 The easiest way to run everything is from the project root:
@@ -24,6 +91,14 @@ The easiest way to run everything is from the project root:
 ```bash
 docker compose up --build
 ```
+
+Before running Docker, add a root `.env` file if you want GitHub-backed scanning to work cleanly:
+
+```env
+GITHUB_TOKEN=your_github_personal_access_token
+```
+
+This token is passed into the scanner service through `docker-compose.yml`. It is especially useful when the scan flow needs to read public GitHub repositories without hitting low anonymous rate limits.
 
 Then open:
 
@@ -44,6 +119,21 @@ If you are not using Docker, start services in this order:
 5. `Avneet/frontend`
 
 My backend depends on the other three services being available.
+
+## Environment Variable
+
+If you are using repository-based scanning, create a `.env` file in the project root and add:
+
+```env
+GITHUB_TOKEN=your_github_personal_access_token
+```
+
+Notes:
+
+- this is the GitHub token used by the scanner service
+- place the `.env` file at the root of the project, beside `docker-compose.yml`
+- without it, local demo flows may still run, but GitHub scanning can fail or get rate-limited
+- never commit the real token to Git
 
 ## Local Run: Backend
 
@@ -141,3 +231,9 @@ If you only want to work on my UI/backend locally:
 - start teammates' services first
 - run `Avneet/backend`
 - run `Avneet/frontend`
+
+## Contributor Role
+
+| Workflow | Name | Role |
+|---|---|---|
+| Member 4 | **Avneet Kaur** | Dashboard and DevOps |
