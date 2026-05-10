@@ -19,6 +19,6 @@ def set_onboarding(onboarding: dict):
     try:
         validate_onboarding(onboarding)
         save_json("onboarding.json", onboarding)
-        return {"status": "ok", "message": "Onboarding saved successfully"}
+        return {"status": "ok"}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
