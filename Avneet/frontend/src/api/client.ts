@@ -4,12 +4,15 @@ const getBaseUrl = () => {
   if (import.meta.env.VITE_API_BASE_URL) {
     return import.meta.env.VITE_API_BASE_URL;
   }
-  // Use same hostname as frontend, but backend port 8000
+  // For Render: use the backend service URL directly
+  // For local dev: use localhost:8000
   const hostname = window.location.hostname || "localhost";
-  const protocol = window.location.protocol || "http:";
-  // Remove port from hostname if present (like spectre-0ekq.onrender.com)
-  const cleanHostname = hostname.split(':')[0];
-  return `${protocol}//${cleanHostname}:8000`;
+  if (hostname.includes('onrender.com')) {
+    // On Render, use the backend service URL
+    return 'https://spectre-0ekq.onrender.com'; // Replace with your actual backend URL
+  }
+  // Local development
+  return `http://${hostname}:8000`;
 };
 
 const API_BASE_URL: string = getBaseUrl();
