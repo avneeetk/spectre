@@ -12,6 +12,9 @@ export default defineConfig(({ mode }) => ({
       overlay: false,
     },
   },
+  preview: {
+    allowedHosts: ["spectre-0ekq.onrender.com", "localhost"],
+  },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {
     alias: {
