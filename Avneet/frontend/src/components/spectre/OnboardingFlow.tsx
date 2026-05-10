@@ -192,7 +192,7 @@ const OnboardingFlow = ({ onStartScan, onBack }: OnboardingFlowProps) => {
           title: "Success",
           description: "Onboarding data saved successfully",
         });
-        // Skip refresh to avoid slow data loading - will refresh when user navigates to dashboard
+        await refresh();
         onStartScan();
       } else {
         throw new Error("Unexpected response from server");
