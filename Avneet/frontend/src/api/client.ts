@@ -6,7 +6,10 @@ const getBaseUrl = () => {
   }
   // Use same hostname as frontend, but backend port 8000
   const hostname = window.location.hostname || "localhost";
-  return `http://${hostname}:8000`;
+  const protocol = window.location.protocol || "http:";
+  // Remove port from hostname if present (like spectre-0ekq.onrender.com)
+  const cleanHostname = hostname.split(':')[0];
+  return `${protocol}//${cleanHostname}:8000`;
 };
 
 const API_BASE_URL: string = getBaseUrl();
