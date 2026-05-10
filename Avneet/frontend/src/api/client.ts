@@ -9,7 +9,7 @@ const getBaseUrl = () => {
   const hostname = window.location.hostname || "localhost";
   if (hostname.includes('onrender.com')) {
     // On Render, use the backend service URL
-    return 'https://spectre-0ekq.onrender.com'; // Replace with your actual backend URL
+    return 'https://spectre-api-cwyp.onrender.com';
   }
   // Local development
   return `http://${hostname}:8000`;
